@@ -67,6 +67,36 @@ describe("Public cutaway", () => {
     assertNoClassLeaks(status, "public/status.json");
   });
 
+  it("fail-closes on synthetic class-of-leak stand-ins", () => {
+    const standIns: Record<string, string> = {
+      "macOS home path": "see /Users/operator/src",
+      "Linux home path": "see /home/operator/src/",
+      "Windows home path": "see C:\\Users\\operator",
+      "home-dir shorthand": "notes in ~/.config/dan",
+      "Tailscale CGNAT (100.64.0.0/10)": "peer 100.64.0.1",
+      "bot handle": "ping @exampleBot",
+      "Neon-style endpoint id": "host ep-sample-name",
+      "dollar-range theater": "claim $2-4M",
+      "million-dollar theater": "claim $2M",
+      "large kilo-dollar theater": "claim $999K",
+      "GitHub PAT shape": "ghp_" + "a".repeat(20),
+      "AWS access key shape": "AKIA" + "A".repeat(16),
+      "OpenAI-style secret key": "sk-" + "a".repeat(20),
+      "Slack token shape": "xoxb-example",
+    };
+    for (const { name, pattern } of LEAK_CLASSES) {
+      const sample = standIns[name];
+      expect(sample, `missing stand-in for ${name}`).toBeString();
+      expect(pattern.test(sample ?? ""), `${name} must match its stand-in`).toBe(true);
+    }
+  });
+
+  it("does not treat illustrative $10K/$30K gate marks as dollar theater", () => {
+    assertNoClassLeaks("$10K MRR", "illustrative $10K");
+    assertNoClassLeaks("$30K MRR", "illustrative $30K");
+    assertNoClassLeaks("$10K → $30K MRR", "illustrative gate range");
+  });
+
   it("does not leak operator-local deny needles when a local list is present", () => {
     const needles = loadLocalNeedles();
     if (needles.length === 0) {
