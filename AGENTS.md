@@ -1,6 +1,6 @@
 # Dan The Automator Agent Instructions
 
-Read `CLAUDE.md` first. This repo is a Bun/TypeScript service that receives Sentry webhooks, asks Claude for fixes, opens GitHub PRs, and notifies Slack.
+Read `CLAUDE.md` first. This repo is the public Intelligent OS control plane for San Diego AI Studio / Luc Face: kill-switch, heartbeats, typed signal intake, human-gated proposals, and a living cutaway.
 
 ## Commands
 
@@ -9,12 +9,13 @@ bun install
 bun dev
 bun test
 bun run typecheck
+bun run src/cli.ts help
 ```
 
 ## Rules
 
-- Preserve webhook signature verification and Zod validation.
-- Do not weaken Sentry/GitHub/Slack auth or token handling.
-- Keep fixes minimal and testable; this repo automates production repair flows.
-- Do not trigger live PR creation or Slack notification paths unless explicitly asked.
-
+- Preserve HMAC verification, Zod validation, and the kill-switch fail-open / fail-closed contract.
+- Do not weaken tokens or ship secrets, home paths, private IPs, or client names in `public/`.
+- Autofix is one optional lane. Do not revive a Sentry-only “heals prod in minutes” story.
+- Do not trigger live Slack, GitHub write-back, or paid model calls unless explicitly asked.
+- Keep the cutaway statuses illustrative unless you wire a safe static `status.json`.

@@ -1,14 +1,16 @@
+import { env } from "../config";
+import type { ActionJob, KillSwitchState } from "../types";
+
+interface SlackText {
+  type: "plain_text" | "mrkdwn";
+  text: string;
+  emoji?: boolean;
+}
+
 interface SlackBlock {
-  type: string;
-  text?: {
-    type: string;
-    text: string;
-    emoji?: boolean;
-  };
-  elements?: Array<{
-    type: string;
-    text: string;
-  }>;
+  type: "header" | "section" | "context";
+  text?: SlackText;
+  elements?: Array<{ type: "mrkdwn"; text: string }>;
 }
 
 interface SlackMessage {
@@ -17,9 +19,8 @@ interface SlackMessage {
 }
 
 async function sendSlackMessage(message: SlackMessage): Promise<boolean> {
-  const webhookUrl = process.env["SLACK_WEBHOOK_URL"];
+  const webhookUrl = env("SLACK_WEBHOOK_URL");
   if (!webhookUrl) {
-    console.warn("[Slack] SLACK_WEBHOOK_URL not set - skipping notification");
     return false;
   }
 
@@ -29,134 +30,91 @@ async function sendSlackMessage(message: SlackMessage): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(message),
     });
-
     if (!response.ok) {
-      const text = await response.text();
-      console.error(`[Slack] Failed to send message: ${response.status} ${text}`);
+      console.error(`[Slack] ${response.status} ${await response.text()}`);
       return false;
     }
-
-    console.log("[Slack] Notification sent");
     return true;
   } catch (err: unknown) {
-    const message_text = err instanceof Error ? err.message : String(err);
-    console.error(`[Slack] Error sending notification: ${message_text}`);
+    const text = err instanceof Error ? err.message : String(err);
+    console.error(`[Slack] ${text}`);
     return false;
   }
 }
 
-/**
- * Notify that a new issue was detected.
- */
-export async function notifyIssueDetected(issue: {
-  issueId: string;
-  title: string;
-}): Promise<boolean> {
+export async function notifySignalIngested(job: ActionJob): Promise<boolean> {
+  return sendSlackMessage({
+    text: `Signal ingested: ${job.signal.title}`,
+    blocks: [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "Signal ingested", emoji: true },
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*${job.signal.title}*\n\`${job.id}\` · ${job.signal.source} · ${job.signal.kind} · ${job.status}`,
+        },
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "Dan proposes. A human still gates." }],
+      },
+    ],
+  });
+}
+
+export async function notifyJobUpdate(job: ActionJob, line: string): Promise<boolean> {
+  return sendSlackMessage({
+    text: `${line}: ${job.signal.title}`,
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*${job.signal.title}*\n${line}\n\`${job.id}\` · ${job.status}`,
+        },
+      },
+    ],
+  });
+}
+
+export async function notifyKillSwitch(state: KillSwitchState): Promise<boolean> {
+  return sendSlackMessage({
+    text: `Kill-switch ${state.active ? "ON" : "OFF"}: ${state.reason || "cleared"}`,
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: state.active ? "Kill-switch armed" : "Kill-switch cleared",
+          emoji: true,
+        },
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: state.reason ? `*${state.reason}*` : "System work is allowed again.",
+        },
+      },
+    ],
+  });
+}
+
+/** @deprecated kept for the old Sentry-shaped callers in tests */
+export async function notifyIssueDetected(issue: { issueId: string; title: string }): Promise<boolean> {
   return sendSlackMessage({
     text: `New issue detected: ${issue.title}`,
     blocks: [
       {
         type: "header",
-        text: {
-          type: "plain_text",
-          text: "New Issue Detected",
-          emoji: true,
-        },
+        text: { type: "plain_text", text: "New Issue Detected", emoji: true },
       },
       {
         type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${issue.title}*\nIssue ID: \`${issue.issueId}\``,
-        },
-      },
-      {
-        type: "context",
-        elements: [
-          {
-            type: "mrkdwn",
-            text: "Dan the Automator is on it.",
-          },
-        ],
-      },
-    ],
-  });
-}
-
-/**
- * Notify that a fix is being worked on.
- */
-export async function notifyFixInProgress(issue: {
-  issueId: string;
-  title: string;
-}): Promise<boolean> {
-  return sendSlackMessage({
-    text: `Working on fix for: ${issue.title}`,
-    blocks: [
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `Working on fix for *${issue.title}*\nIssue ID: \`${issue.issueId}\``,
-        },
-      },
-    ],
-  });
-}
-
-/**
- * Notify that a PR has been created with the fix.
- */
-export async function notifyPRCreated(
-  issue: { issueId: string; title: string },
-  prUrl: string
-): Promise<boolean> {
-  return sendSlackMessage({
-    text: `Fix ready for review: ${prUrl}`,
-    blocks: [
-      {
-        type: "header",
-        text: {
-          type: "plain_text",
-          text: "Fix Ready for Review",
-          emoji: true,
-        },
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${issue.title}*\n<${prUrl}|View Pull Request>`,
-        },
-      },
-    ],
-  });
-}
-
-/**
- * Notify that a fix has been deployed.
- */
-export async function notifyDeployed(issue: {
-  issueId: string;
-  title: string;
-}): Promise<boolean> {
-  return sendSlackMessage({
-    text: `Fix deployed for: ${issue.title}`,
-    blocks: [
-      {
-        type: "header",
-        text: {
-          type: "plain_text",
-          text: "Fix Deployed!",
-          emoji: true,
-        },
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${issue.title}*\nIssue ID: \`${issue.issueId}\`\n\nThe fix is now live. Please verify it works as expected.`,
-        },
+        text: { type: "mrkdwn", text: `*${issue.title}*\nIssue ID: \`${issue.issueId}\`` },
       },
     ],
   });

@@ -1,202 +1,182 @@
 # Dan the Automator
 
-**Self-healing application infrastructure** - Automatically detect, diagnose, fix, and deploy bug fixes with minimal human intervention.
+**Dan is the public face of a self-correcting business operating system — agent fleet, kill-switch, truth audits, flywheel — not yet another autofix bot.**
 
-## Vision
+This repo is the showcase control plane for [San Diego AI Studio](https://sandiegoaistudio.com) / Luc Face. The studio runs as one designed universe: a riverbed (the Intelligent OS) under a set of cash engines, turned by a flywheel that **attracts → converts → delivers → compounds**. Dan is the automator on that riverbed. He ingests a signal, diagnoses it, proposes an action, and **stops for a human**. He does not silently “heal production in two minutes.” That was the old README. It was vapor.
 
-```
-User hits bug → Sentry captures → AI analyzes → Agent fixes → Tests pass → Deploy → User notified
-     ↓              ↓                ↓              ↓            ↓          ↓           ↓
-   5 sec         instant          30 sec        60 sec       30 sec     30 sec      instant
+**Ethos:** Casual Building for Serious Leverage.
 
-Total: ~2-3 minutes from bug to fix (vs hours/days traditionally)
-```
+<p align="center">
+  <a href="./public/index.html"><strong>Open the living cutaway →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://sandiegoaistudio.com">sandiegoaistudio.com</a>
+</p>
 
-## The Dream User Journey
+The cutaway is the showpiece: pan, zoom, guided tour, searchable node index, status legend, flywheel particles. Statuses are an **illustrative snapshot** (`public/status.json`), not a live bank or telemetry feed.
 
-1. **User Experience**
-   - Sarah clicks "Save" button, nothing happens
-   - Floating "Report Issue" button appears
-   - She clicks it, types "Save button not working"
-   - Gets Slack notification: "Thanks! We're looking into this."
+---
 
-2. **Behind the Scenes**
-   - Sentry captures the event + session replay
-   - Seer AI analyzes: "onClick handler missing await, Promise rejected silently"
-   - Webhook triggers Dan the Automator
-
-3. **Auto-Fix Pipeline**
-   - Claude/Cursor agent receives the analysis
-   - Reads relevant code files
-   - Writes the fix
-   - Runs tests locally
-   - Creates PR with fix
-
-4. **Deployment**
-   - CI runs, tests pass
-   - Auto-merge to staging
-   - Deploy to production
-
-5. **User Notification**
-   - Slack: "Fix deployed! Try the save button again."
-   - Sarah tries → Works!
-   - Thumbs up/down feedback
-   - If thumbs down → Loop back to agent
-
-## Architecture
+## The point, in one stack
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         DAN THE AUTOMATOR                                │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐       │
-│  │  Sentry  │────▶│  Webhook │────▶│  Queue   │────▶│  Agent   │       │
-│  │  + Seer  │     │  Server  │     │ (Redis)  │     │ (Claude) │       │
-│  └──────────┘     └──────────┘     └──────────┘     └──────────┘       │
-│       │                                                   │              │
-│       │                                                   ▼              │
-│       │           ┌──────────┐     ┌──────────┐     ┌──────────┐       │
-│       │           │  Slack   │◀────│  GitHub  │◀────│  Test    │       │
-│       └──────────▶│  Notify  │     │  PR/CI   │     │  Runner  │       │
-│                   └──────────┘     └──────────┘     └──────────┘       │
-│                        │                                                 │
-│                        ▼                                                 │
-│                   ┌──────────┐                                          │
-│                   │  User    │                                          │
-│                   │ Feedback │───────────────────────────────────┐      │
-│                   └──────────┘                                   │      │
-│                                                                  ▼      │
-│                                                            [Loop back   │
-│                                                             if failed]  │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+⑤  STORE OF VALUE     land → energy on an owned roof → rented compute / robots
+④  THE MOAT           relationship graph + community + accumulated fleet
+③  CONVERSION         engine cash → an owner-independent business
+②  THE ARMS           SDAIS (the heart) · AFP (relationships / cash now) · shots (Struvo, …)
+①  LEVERAGE           agent fleet / Intelligent OS  ← Dan lives here
+⓪  THE WHY            comprehend the universe by building it — and hand the leverage down
 ```
 
-## Components
+SDAIS is the heart. Products are **shots on goal**, not main characters. Software gets cheaper to copy every quarter; the graph of builders you actually made more capable does not.
 
-### 1. Webhook Server (`/webhook`)
-Receives events from Sentry when issues are created/updated.
+```
+                    THE WORLD
+                        │ attention
+                        ▼
+                 ┌──────────────┐
+                 │    FUNNEL    │  stranger → advocate
+                 │  SDAIS heart │
+                 └──────┬───────┘
+                        │
+        ┌───────────────┼────────────────┐
+        ▼               ▼                ▼
+     STRUVO            AFP           OTHER SHOTS
+   (construction)  (outreach)     (apps / intel / CRM)
+        │               │                │
+        └─────────── dollars ────────────┘
+                        │
+                        ▼
+              $10K → $30K MRR GATE
+              no hard assets until it opens
+                        │
+                        ▼
+                    ENDGAME
+              land · solar · rented compute
 
-```typescript
-POST /webhook/sentry
-{
-  event: "issue.created",
-  data: {
-    issue_id: "...",
-    title: "TypeError: Cannot read property...",
-    seer_analysis: "Root cause: null check missing...",
-    file: "src/components/Dashboard.tsx",
-    line: 142
-  }
-}
+════════════════ THE RIVERBED (locked) ════════════════
+  kill-switch · heartbeats · memory · quarantine
+  agent cores (lit + dormant) · quality gates
+  Dan: ingest → diagnose → propose → HUMAN GATE → report
 ```
 
-### 2. Job Queue
-Queues fix requests for processing by agents.
+The flywheel is physical: every arm exhales attention back into the funnel. Judge a **funnel** asset on attention. Judge an **engine** asset on dollars. Mixing those tests is how you plateau.
 
-### 3. AI Agent
-- Receives issue + Seer analysis
-- Clones repo / reads files
-- Writes fix
-- Runs tests
-- Creates PR
+---
 
-### 4. GitHub Integration
-- Creates branches
-- Opens PRs with fix
-- Triggers CI
-- Auto-merges on success
+## Five properties (or it is not in the system)
 
-### 5. Slack Notifier
-- Notifies users of issue detection
-- Updates on fix progress
-- Requests feedback after fix
+| # | Property | How you know it’s working |
+|---|---|---|
+| 1 | **Truth-anchored** | Drift gets found. Surprise findings stay at zero. |
+| 2 | **Self-correcting** | Heartbeats, reflect loops, kill-switch on measured signals. |
+| 3 | **Compute-optimal** | Local first → paid fallback → hard-fail. No silent empties. |
+| 4 | **Compounding** | Decisions write back. The next brief is cheaper. |
+| 5 | **Revenue-protective** | Kill-switch + time budget. System work does not eat the engines. |
 
-### 6. Feedback Loop
-- Collects thumbs up/down
-- Routes negative feedback back to agent
-- Tracks success rate
+When they conflict: **revenue > truth > self-correct > compound > compute.** Cost is recoverable. Trust isn’t.
 
-## Tech Stack
+Cute features that require the operator to remember to invoke them are **not in the system.**
 
-- **Runtime:** Node.js / Bun
-- **Agent:** Claude API / Anthropic SDK
-- **Queue:** Redis + Bull
-- **Database:** PostgreSQL (for tracking)
-- **Notifications:** Slack API
-- **CI/CD:** GitHub Actions
-- **Hosting:** Railway / Fly.io
+---
 
-## Getting Started
+## What works today vs the roadmap
+
+### Works today (this repo)
+
+- Living cutaway at `/` — pan/zoom, tour, index, illustrative statuses
+- HTTP control plane on Bun + Hono (`GET /health`, `GET /os`)
+- **Kill-switch** with THE-SYSTEM contract: missing file → fail-open; corrupt file → fail-closed; `dan ks on <reason>`
+- **Heartbeat registry** with stale detection (2× cadence)
+- **Signal intake → diagnose → propose → human gate → report**
+- Sentry HMAC webhook as **one intake adapter**, not the product
+- Optional Slack notify (skipped if `SLACK_WEBHOOK_URL` is unset)
+- CLI: `dan ingest` / `dan approve` / `dan reject` / `dan ks` / `dan heartbeat`
+- Optional `DAN_CONTROL_TOKEN` on mutating routes
+- Tests + `bunx tsc --noEmit`
+
+Queue is **in-memory**. Restart and the jobs are gone. That is honest for a Phase-1 skeleton.
+
+### Not this repo (do not invent a demo that claims it)
+
+- No live Claude autofix writing your production app
+- No auto-opened GitHub PRs on the default path
+- No Redis / Postgres / Bull (the old README named them; the code never had them)
+- No live MRR gauge, customer counts, or “minutes to fix”
+- The cutaway is **not** wired to private business-ops telemetry
+
+Autofix is one **lane**: an error signal with a file hint becomes an `autofix-candidate` proposal. A human still gates. Wiring a model + `git` write-back is roadmap, behind the same kill-switch.
+
+### Roadmap (named, not dated)
+
+- Persist jobs and heartbeats
+- Optional live diagnose (Claude) behind `--live` + kill-switch
+- Optional GitHub propose-PR lane, still human-gated
+- Safe `status.json` refresh from public product health only
+- Compound layer: decision log + weekly drift note
+
+---
+
+## Quick start
 
 ```bash
-# Clone
-git clone https://github.com/Lucface/dan-the-automator.git
-cd dan-the-automator
-
-# Install
 bun install
-
-# Configure
-cp .env.example .env
-# Add your API keys
-
-# Run
-bun dev
+bun test
+bun run typecheck
+bun dev          # http://localhost:3456  ← the cutaway
 ```
-
-## Environment Variables
 
 ```bash
-# Sentry
-SENTRY_WEBHOOK_SECRET=...
+# kill-switch
+bun run src/cli.ts ks on "revenue week"
+bun run src/cli.ts ks off
 
-# Anthropic (Claude)
-ANTHROPIC_API_KEY=sk-ant-...
+# signal → proposal → gate
+bun run src/cli.ts ingest --title "STT failover flapped" --kind error --file src/stt.ts
+bun run src/cli.ts jobs
+bun run src/cli.ts approve job_<id>
 
-# GitHub
-GITHUB_TOKEN=ghp_...
-GITHUB_REPO=Lucface/twentyfive
-
-# Slack
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_CHANNEL_ID=C...
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# Database
-DATABASE_URL=postgresql://...
+# HTTP
+curl -s localhost:3456/health | jq
+curl -s localhost:3456/os | jq .honest
+curl -s -X POST localhost:3456/signals \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"operator","kind":"manual","title":"look at the radar"}'
 ```
 
-## Roadmap
+Open `public/index.html` from disk if you just want the map. `status.json` overlays when the file is served over HTTP.
 
-### Phase 1: Foundation
-- [ ] Webhook server to receive Sentry events
-- [ ] Basic Slack notifications
-- [ ] Manual trigger for testing
+---
 
-### Phase 2: Agent Integration
-- [ ] Claude agent reads code + writes fixes
-- [ ] Test runner integration
-- [ ] PR creation
+## Endpoints
 
-### Phase 3: Automation
-- [ ] Auto-merge on passing tests
-- [ ] User notification flow
-- [ ] Feedback collection
+| Method | Path | What it does |
+|--------|------|----------------|
+| GET | `/` | Living cutaway |
+| GET | `/status.json` | Illustrative node statuses |
+| GET | `/health` | Process + kill-switch + heartbeats + queue |
+| GET | `/os` | Properties, 8-layer stack, fleet roster |
+| GET | `/kill-switch` | Current switch |
+| POST | `/kill-switch` | Arm / clear (`{ active, reason }`) |
+| GET/POST | `/heartbeats` | Registry + pulse |
+| POST | `/signals` | Generic typed intake |
+| POST | `/webhook/sentry` | Sentry adapter (HMAC) |
+| POST | `/trigger` | Manual intake (dev) |
+| GET | `/jobs` | List (`?status=`) |
+| GET | `/jobs/:id` | One job |
+| POST | `/jobs/:id/approve` | Human gate |
+| POST | `/jobs/:id/reject` | Human gate |
 
-### Phase 4: Intelligence
-- [ ] Learn from feedback
-- [ ] Prioritize high-impact fixes
-- [ ] Proactive bug detection
+Mutating control routes take `Authorization: Bearer $DAN_CONTROL_TOKEN` when that env is set. Sentry keeps its own HMAC. `/trigger` is a local convenience, not a production door.
 
-## Related Projects
+---
 
-- [TwentyFive CRM](https://github.com/Lucface/twentyfive) - First app to use Dan the Automator
-- [Sentry](https://sentry.io) - Error tracking + Seer AI
-- [Claude Code](https://claude.ai) - AI coding agent
+## Brand
+
+San Diego AI Studio builds in public from San Diego. Luc Face is the operator studio behind it. Dan is the automator — the thing that keeps the machine self-correcting so a tiny team can run more than a tiny team should.
+
+If you want the community, start at [sandiegoaistudio.com](https://sandiegoaistudio.com). If you want the map of the machine, stay on the cutaway.
+
+---
 
 ## License
 

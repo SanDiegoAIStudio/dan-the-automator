@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+*.log
+.DS_Store
+data/heartbeats/*.json
+!data/heartbeats/.gitkeep
+data/kill-switch.log
+data/kill-switch-corruption.log

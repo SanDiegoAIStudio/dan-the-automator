@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+<meta name="description" content="Living cutaway of the San Diego AI Studio Intelligent OS — flywheel, kill-switch, agent fleet. Statuses are illustrative.">
+<title>THE MACHINE — San Diego AI Studio</title>
+<style>
+  :root{
+    --bg:#060a16; --ink:#e8ecf6; --mut:#8b96b3; --line:#24304e;
+    --attn:#ff8c66; --cash:#7ee2a8; --os:#4dd8cc; --blue:#6f9be8;
+    --live:#ffd75e; --dark:#c9a24b; --bld:#f0b35e; --dorm:#5a6a8c;
+    --panel:#0d1526; --chip:#131e36;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;cursor:grab}
+  #stage.drag{cursor:grabbing}
+  svg{width:100%;height:100%;display:block}
+  svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;user-select:none}
+  .etch{fill:var(--mut);letter-spacing:.18em;font-weight:600}
+  .lbl{fill:var(--ink);font-weight:600}
+  .sub{fill:var(--mut)}
+  [data-id]{cursor:pointer}
+  [data-id]:hover .hoverable{filter:brightness(1.35)}
+  /* chrome */
+  #topbar{position:fixed;top:14px;left:16px;right:16px;display:flex;gap:10px;align-items:center;
+    pointer-events:none;z-index:30}
+  #topbar .title{font-weight:700;letter-spacing:.14em;font-size:13px;color:var(--ink);
+    background:rgba(13,21,38,.82);border:1px solid var(--line);border-radius:8px;padding:7px 12px;backdrop-filter:blur(6px)}
+  #topbar .title span{color:var(--mut);font-weight:500;letter-spacing:.02em;margin-left:8px}
+  .btn{pointer-events:auto;background:rgba(13,21,38,.82);border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;backdrop-filter:blur(6px)}
+  .btn:hover{border-color:var(--blue);color:#fff}
+  .btn.on{border-color:var(--live);color:var(--live)}
+  #legend{position:fixed;right:16px;top:60px;display:flex;flex-direction:column;gap:5px;z-index:30;
+    background:rgba(13,21,38,.82);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:11.5px;color:var(--mut);backdrop-filter:blur(6px)}
+  #legend b{color:var(--ink);font-weight:600;letter-spacing:.1em;font-size:10px}
+  .lg{display:flex;align-items:center;gap:7px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  /* tooltip */
+  #tip{position:fixed;pointer-events:none;background:#0d1526;border:1px solid var(--line);border-radius:7px;
+    padding:6px 10px;font-size:12px;z-index:60;display:none;max-width:260px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #tip .s{color:var(--mut);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+  /* detail panel */
+  #panel{position:fixed;top:0;right:0;width:360px;height:100%;background:rgba(11,18,33,.96);
+    border-left:1px solid var(--line);z-index:40;transform:translateX(105%);transition:transform .28s ease;
+    padding:22px;overflow:auto;backdrop-filter:blur(8px)}
+  #panel.open{transform:none}
+  #panel h2{margin:2px 0 4px;font-size:19px;letter-spacing:-.01em}
+  #panel .chips{display:flex;gap:6px;margin:8px 0 14px;flex-wrap:wrap}
+  .chip{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);
+    border-radius:20px;padding:3px 9px;color:var(--mut)}
+  .chip.st-live{color:var(--live);border-color:var(--live)}
+  .chip.st-dark{color:var(--dark);border-color:var(--dark)}
+  .chip.st-building{color:var(--bld);border-color:var(--bld)}
+  .chip.st-dormant{color:var(--dorm);border-color:var(--dorm)}
+  .chip.st-blueprint{color:var(--blue);border-color:var(--blue)}
+  .chip.st-dead{color:#666;border-color:#444}
+  #panel p{color:#c3ccdf;font-size:13.5px}
+  #panel .kv{font-size:12px;color:var(--mut);margin:12px 0;border-top:1px dashed var(--line);padding-top:10px}
+  #panel .kv code{color:var(--ink);background:var(--chip);padding:1px 6px;border-radius:4px;font-size:11.5px;word-break:break-all}
+  #panel .kids a{display:block;color:var(--blue);text-decoration:none;font-size:12.5px;padding:3px 0}
+  #panel .kids a:hover{color:#fff}
+  #pclose{position:absolute;top:14px;right:14px}
+  /* index drawer */
+  #drawer{position:fixed;top:0;left:0;width:330px;height:100%;background:rgba(11,18,33,.96);
+    border-right:1px solid var(--line);z-index:40;transform:translateX(-105%);transition:transform .28s ease;
+    display:flex;flex-direction:column;backdrop-filter:blur(8px)}
+  #drawer.open{transform:none}
+  #drawer header{padding:18px 18px 10px}
+  #drawer input{width:100%;background:var(--chip);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);padding:8px 11px;font-size:13px;outline:none}
+  #dlist{flex:1;overflow:auto;padding:0 10px 30px}
+  #dlist .grp{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
+    padding:14px 8px 5px;position:sticky;top:0;background:rgba(11,18,33,.96)}
+  #dlist .it{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:7px;
+    font-size:12.5px;cursor:pointer;color:#c3ccdf}
+  #dlist .it:hover{background:var(--chip);color:#fff}
+  #dlist .it .st{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;align-self:center}
+  .st-live{color:var(--live)} .st-dark{color:var(--dark)} .st-building{color:var(--bld)}
+  .st-dormant{color:var(--dorm)} .st-blueprint{color:var(--blue)} .st-dead{color:#666}
+  /* tour */
+  #tourcard{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);width:min(620px,92vw);
+    background:rgba(11,18,33,.94);border:1px solid var(--line);border-radius:14px;padding:18px 22px;
+    z-index:50;display:none;backdrop-filter:blur(8px);box-shadow:0 12px 40px rgba(0,0,0,.55)}
+  #tourcard h3{margin:0 0 6px;font-size:16px}
+  #tourcard p{margin:0;color:#c3ccdf;font-size:13.5px}
+  #tourcard .nav{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+  #tourcard .step{color:var(--mut);font-size:11.5px;letter-spacing:.1em}
+  #hint{position:fixed;left:16px;bottom:16px;color:var(--mut);font-size:11px;z-index:30;
+    background:rgba(13,21,38,.7);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+  .liveonly [data-status]:not([data-status="live"]){opacity:.06;transition:opacity .4s}
+  [data-status]{transition:opacity .4s}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="title">THE MACHINE<span>living cutaway · San Diego AI Studio</span></div>
+  <button class="btn" id="btnTour">▶ the story</button>
+  <button class="btn" id="btnIndex">☰ index</button>
+  <button class="btn" id="btnLive">live only</button>
+  <button class="btn" id="btnReset">⤢ full view</button>
+</div>
+<div id="legend">
+  <b>STATUS</b>
+  <span class="lg"><span class="dot" style="background:var(--live)"></span> live — runs today</span>
+  <span class="lg"><span class="dot" style="background:var(--dark)"></span> dark — built, flag off</span>
+  <span class="lg"><span class="dot" style="background:var(--bld)"></span> building</span>
+  <span class="lg"><span class="dot" style="background:var(--dorm)"></span> dormant — wakes on keyword</span>
+  <span class="lg"><span class="dot" style="border:1.5px dashed var(--blue)"></span> blueprint — designed</span>
+  <b style="margin-top:6px">FLOWS</b>
+  <span class="lg"><span class="dot" style="background:var(--attn)"></span> attention (funnel metric)</span>
+  <span class="lg"><span class="dot" style="background:var(--cash)"></span> dollars (engine metric)</span>
+</div>
+
+<div id="disclaimer">
+  Illustrative map of the San Diego AI Studio operating system.
+  Statuses are a static snapshot, not a live telemetry feed.
+  <a href="https://sandiegoaistudio.com" target="_blank" rel="noreferrer">sandiegoaistudio.com</a>
+  · <a href="https://github.com/SanDiegoAIStudio/dan-the-automator" target="_blank" rel="noreferrer">dan-the-automator</a>
+</div>
+<style>
+  #disclaimer{position:fixed;left:16px;bottom:48px;z-index:30;max-width:min(420px,70vw);
+    background:rgba(13,21,38,.82);border:1px solid var(--line);border-radius:8px;padding:7px 10px;
+    font-size:11px;color:var(--mut);line-height:1.45;backdrop-filter:blur(6px)}
+  #disclaimer a{color:var(--os);text-decoration:none}
+  #disclaimer a:hover{color:#fff}
+</style>
+
+<div id="hint">drag to pan · scroll to zoom · click anything</div>
+<div id="tip"></div>
+
+<div id="stage">
+<svg id="scene" viewBox="0 0 2400 1350" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#04060e"/><stop offset="1" stop-color="#0c1428"/>
+  </linearGradient>
+  <radialGradient id="gDawn" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#ffb15e" stop-opacity=".55"/>
+    <stop offset="0.45" stop-color="#ff8c5e" stop-opacity=".22"/>
+    <stop offset="1" stop-color="#ff8c5e" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="gHill" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#182643"/><stop offset="1" stop-color="#0d1526"/>
+  </linearGradient>
+  <linearGradient id="gSlab" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#182240"/><stop offset="1" stop-color="#101830"/>
+  </linearGradient>
+  <linearGradient id="gRock" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0a1122"/><stop offset="1" stop-color="#060b17"/>
+  </linearGradient>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="6" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="glowBig" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="14" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+
+<!-- ══════════ SKY ══════════ -->
+<rect x="0" y="0" width="2400" height="1350" fill="url(#gSky)"/>
+<ellipse cx="2340" cy="640" rx="560" ry="420" fill="url(#gDawn)"/>
+<g id="stars"></g>
+<g data-id="why" data-status="live">
+  <text class="hoverable" x="1050" y="86" text-anchor="middle" font-size="15" letter-spacing=".34em" fill="#aeb9d6" font-weight="700">T H E   W H Y</text>
+  <text class="hoverable" x="1050" y="120" text-anchor="middle" font-size="19" fill="#e8ecf6" opacity=".92">“comprehend the universe by building it — with Rhea &amp; Bree — and hand the leverage down”</text>
+  <g stroke="#8fa3d9" stroke-width="1" opacity=".6">
+    <line x1="960" y1="150" x2="1000" y2="166"/><line x1="1000" y1="166" x2="1046" y2="152"/>
+    <line x1="1046" y1="152" x2="1092" y2="168"/><line x1="1092" y1="168" x2="1138" y2="150"/>
+  </g>
+  <g fill="#cfe0ff" filter="url(#glow)">
+    <circle cx="960" cy="150" r="2.4"/><circle cx="1000" cy="166" r="1.8"/><circle cx="1046" cy="152" r="2.8"/>
+    <circle cx="1092" cy="168" r="1.8"/><circle cx="1138" cy="150" r="2.4"/>
+  </g>
+  <text x="1050" y="192" text-anchor="middle" font-size="11" fill="#6d7a9c" letter-spacing=".2em">42 · the answer is built, not found</text>
+</g>
+<text x="150" y="250" font-size="12" class="etch">NIGHT — where strangers arrive</text>
+<text x="2245" y="250" font-size="12" class="etch" text-anchor="end">DAWN — where the machine is headed</text>
+
+<!-- ══════════ ENDGAME (right) ══════════ -->
+<g data-id="endgame" data-status="blueprint">
+  <path class="hoverable" d="M 2020 900 Q 2140 760 2230 660 Q 2320 570 2400 545 L 2400 900 Z" fill="url(#gHill)" stroke="#2b3a60" stroke-width="1.5"/>
+  <circle cx="2372" cy="560" r="26" fill="#ffcf8a" filter="url(#glowBig)" opacity=".95"/>
+  <g data-id="end-home" data-status="blueprint" stroke="#7fa8ef" stroke-width="2.6" stroke-dasharray="7 4" fill="#6f9be8" fill-opacity=".07">
+    <path class="hoverable" d="M 2200 640 L 2200 580 L 2258 540 L 2316 580 L 2316 640 Z"/>
+    <rect x="2222" y="600" width="20" height="24"/>
+    <rect x="2272" y="596" width="18" height="16"/>
+  </g>
+  <g data-id="end-solar" data-status="blueprint" stroke="#7fa8ef" stroke-width="2.2" stroke-dasharray="4 4" fill="none">
+    <path class="hoverable" d="M 2212 574 L 2252 548 L 2262 556 L 2222 582 Z"/>
+    <path d="M 2262 546 L 2298 570"/>
+  </g>
+  <g data-id="end-robot" data-status="blueprint" stroke="#7fa8ef" stroke-width="2.2" stroke-dasharray="4 4" fill="none">
+    <rect class="hoverable" x="2140" y="700" width="26" height="30" rx="4"/>
+    <circle cx="2153" cy="692" r="8"/>
+    <line x1="2146" y1="732" x2="2146" y2="748"/><line x1="2160" y1="732" x2="2160" y2="748"/>
+  </g>
+  <text x="2178" y="760" font-size="10" fill="var(--blue)" letter-spacing=".08em">RENTED — never owned</text>
+  <g data-id="end-family" data-status="live" fill="#ffe0b0" filter="url(#glow)">
+    <circle class="hoverable" cx="2348" cy="656" r="6"/><rect x="2344" y="662" width="8" height="16" rx="3"/>
+    <circle cx="2364" cy="658" r="5.4"/><rect x="2360.5" y="663" width="7" height="14" rx="3"/>
+    <circle cx="2378" cy="666" r="4"/><rect x="2375.5" y="670" width="5" height="9" rx="2"/>
+  </g>
+  <path d="M 2338 700 q -6 -26 4 -40" stroke="#3e5a4a" stroke-width="4" fill="none"/>
+  <g data-id="end-vault" data-status="blueprint" stroke="#7fa8ef" stroke-width="2" stroke-dasharray="4 4" fill="none">
+    <rect class="hoverable" x="2072" y="806" width="44" height="36" rx="5"/>
+    <circle cx="2094" cy="824" r="8"/>
+  </g>
+  <text x="2094" y="862" font-size="9.5" fill="var(--blue)" text-anchor="middle">TSLA · SpX · AI equity</text>
+  <text x="2250" y="500" font-size="14" class="etch" text-anchor="middle">T H E   E N D G A M E</text>
+  <text x="2250" y="520" font-size="11" class="sub" text-anchor="middle">land → solar → rented compute · the homestead</text>
+</g>
+
+<!-- ══════════ GATE / DAM ══════════ -->
+<g data-id="gate" data-status="live">
+  <rect class="hoverable" x="1985" y="620" width="42" height="284" rx="4" fill="#1a2440" stroke="#3a4a74" stroke-width="2"/>
+  <line x1="1985" y1="700" x2="2027" y2="700" stroke="#57668f" stroke-width="1.4"/>
+  <text x="2036" y="704" font-size="11" fill="#aeb9d6">$30K MRR</text>
+  <line x1="1985" y1="790" x2="2027" y2="790" stroke="#57668f" stroke-width="1.4"/>
+  <text x="2036" y="794" font-size="11" fill="#aeb9d6">$10K MRR</text>
+  <rect x="1993" y="856" width="26" height="40" fill="#0d1526" stroke="#3a4a74"/>
+  <g stroke="#c9a24b" stroke-width="2" fill="none">
+    <rect x="1999" y="868" width="14" height="12" rx="2"/>
+    <path d="M 2002 868 v -5 a 4 4 0 0 1 8 0 v 5"/>
+  </g>
+  <rect x="1930" y="884" width="55" height="14" fill="var(--cash)" opacity=".8"/>
+  <text x="1957" y="878" font-size="10" fill="var(--cash)" text-anchor="middle">pre-gate · illustrative</text>
+  <text x="2006" y="600" font-size="13" class="etch" text-anchor="middle">⛔ THE GATE</text>
+  <text x="2006" y="616" font-size="10" class="sub" text-anchor="middle">no hard assets until it opens</text>
+  <path d="M 2027 880 Q 2120 830 2190 740" stroke="var(--blue)" stroke-width="3" stroke-dasharray="7 7" fill="none" opacity=".55"/>
+  <text x="2116" y="812" font-size="9.5" fill="var(--blue)" transform="rotate(-28 2116 812)">flow starts when the gate opens</text>
+</g>
+
+<!-- ══════════ FINANCE SPINE ══════════ -->
+<g data-id="finance" data-status="live">
+  <g stroke="#2f4a3f" stroke-width="3" opacity=".9">
+    <line x1="706" y1="758" x2="706" y2="836"/>
+    <line x1="890" y1="758" x2="890" y2="836"/>
+    <line x1="1100" y1="758" x2="1100" y2="836"/>
+    <line x1="1270" y1="758" x2="1270" y2="836"/>
+    <line x1="1462" y1="758" x2="1462" y2="836"/>
+    <line x1="1642" y1="758" x2="1642" y2="836"/>
+  </g>
+  <path id="pCashMain" d="M 706 838 H 1755" fill="none" stroke="#233355" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 706 838 H 1755" fill="none" stroke="#2f4a3f" stroke-width="3" stroke-linecap="round"/>
+  <path id="pCashFin" d="M 1755 838 H 1930 L 1930 880 L 1985 880" fill="none" stroke="#233355" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 1755 838 H 1930 L 1930 880 L 1985 880" fill="none" stroke="#2f4a3f" stroke-width="3"/>
+  <g data-id="fin-captable" data-status="dormant">
+    <circle class="hoverable" cx="1790" cy="838" r="16" fill="#131e36" stroke="#3a4a74" stroke-width="2"/>
+    <line x1="1790" y1="822" x2="1790" y2="806" stroke="#8b96b3" stroke-width="3"/>
+    <circle cx="1790" cy="803" r="4" fill="#8b96b3"/>
+    <text x="1790" y="792" font-size="9.5" fill="#aeb9d6" text-anchor="middle">cap-table · partner split</text>
+  </g>
+  <g data-id="fin-sweeps" data-status="dormant">
+    <rect class="hoverable" x="1836" y="824" width="66" height="28" rx="5" fill="#131e36" stroke="#3a4a74" stroke-width="2"/>
+    <text x="1869" y="842" font-size="9" fill="#aeb9d6" text-anchor="middle">S-CORP SWEEPS</text>
+    <g stroke="#233355" stroke-width="4">
+      <line x1="1848" y1="852" x2="1848" y2="892"/><line x1="1869" y1="852" x2="1869" y2="892"/><line x1="1890" y1="852" x2="1890" y2="892"/>
+    </g>
+    <g fill="#131e36" stroke="#3a4a74" stroke-width="1.5">
+      <rect x="1838" y="892" width="20" height="16" rx="3"/><rect x="1859" y="892" width="20" height="16" rx="3"/><rect x="1880" y="892" width="20" height="16" rx="3"/>
+    </g>
+    <text x="1848" y="921" font-size="8" fill="#8b96b3" text-anchor="middle">tax</text>
+    <text x="1869" y="932" font-size="8" fill="#8b96b3" text-anchor="middle">reserve</text>
+    <text x="1890" y="921" font-size="8" fill="#8b96b3" text-anchor="middle">mktg</text>
+  </g>
+  <text x="1868" y="770" font-size="12" class="etch" text-anchor="middle">FINANCE SPINE</text>
+  <text x="1868" y="786" font-size="9.5" class="sub" text-anchor="middle">deterministic python — agents never compute money</text>
+</g>
+
+<!-- ══════════ FUNNEL + SOURCES ══════════ -->
+<g data-id="funnel" data-status="building">
+  <g data-id="src-youtube" data-status="live">
+    <rect class="hoverable" x="160" y="330" width="62" height="34" rx="7" fill="#131e36" stroke="#3a4a74" stroke-width="1.6"/>
+    <path d="M 182 340 l 14 7 l -14 7 z" fill="var(--attn)"/>
+    <text x="191" y="378" font-size="9.5" fill="#8b96b3" text-anchor="middle">YouTube ×3</text>
+  </g>
+  <g data-id="src-discord" data-status="blueprint">
+    <rect class="hoverable" x="234" y="330" width="66" height="34" rx="7" fill="none" stroke="var(--blue)" stroke-width="1.6" stroke-dasharray="5 4"/>
+    <text x="267" y="351" font-size="10" fill="var(--blue)" text-anchor="middle">Discord</text>
+    <text x="267" y="378" font-size="9.5" fill="#8b96b3" text-anchor="middle">front door</text>
+  </g>
+  <g data-id="src-skool" data-status="building">
+    <rect class="hoverable" x="312" y="330" width="58" height="34" rx="7" fill="#131e36" stroke="var(--bld)" stroke-width="1.6"/>
+    <text x="341" y="351" font-size="10" fill="var(--bld)" text-anchor="middle">Skool</text>
+    <text x="341" y="378" font-size="9.5" fill="#8b96b3" text-anchor="middle">paid = cohorts</text>
+  </g>
+  <g data-id="src-events" data-status="live">
+    <rect class="hoverable" x="382" y="330" width="62" height="34" rx="7" fill="#131e36" stroke="#3a4a74" stroke-width="1.6"/>
+    <text x="413" y="351" font-size="10" fill="#e8ecf6" text-anchor="middle">Events</text>
+    <text x="413" y="378" font-size="9.5" fill="#8b96b3" text-anchor="middle">Sharathon · IRL</text>
+  </g>
+  <g stroke="#3a4a74" stroke-width="1.4" opacity=".8">
+    <line x1="191" y1="364" x2="196" y2="398"/>
+    <line x1="267" y1="364" x2="270" y2="398"/>
+    <line x1="341" y1="364" x2="340" y2="398"/>
+    <line x1="413" y1="364" x2="404" y2="398"/>
+  </g>
+  <path class="hoverable" d="M 150 400 L 440 400 L 310 610 L 280 610 Z" fill="#121b32" stroke="#4a5c8c" stroke-width="3"/>
+  <path d="M 158 406 L 430 406" stroke="#57668f" stroke-width="1.2" opacity=".6"/>
+  <g id="funnelEtch" font-size="8.6" fill="#5d6c94" text-anchor="middle"></g>
+  <rect x="278" y="610" width="34" height="30" fill="#121b32" stroke="#4a5c8c" stroke-width="3"/>
+  <path id="pDrop" d="M 295 640 L 295 782" fill="none" stroke="#233355" stroke-width="8" stroke-linecap="round"/>
+  <text x="150" y="645" font-size="14" class="etch">THE FUNNEL</text>
+  <text x="150" y="662" font-size="10" class="sub">SDAIS · the heart · metric: ATTENTION</text>
+</g>
+
+<!-- radar dish, roof-mounted on Struvo, chute back to the funnel -->
+<g data-id="radar" data-status="live">
+  <line x1="690" y1="500" x2="690" y2="410" stroke="#3a4a74" stroke-width="4"/>
+  <line x1="676" y1="500" x2="704" y2="500" stroke="#3a4a74" stroke-width="4"/>
+  <g transform="translate(690 398)">
+    <path class="hoverable" d="M -20 6 A 22 22 0 0 1 20 6 Z" fill="#131e36" stroke="var(--os)" stroke-width="2"/>
+    <path d="M 0 2 L -96 -34 L -96 38 Z" fill="var(--os)" opacity=".12">
+      <animateTransform attributeName="transform" type="rotate" values="-34 0 2;26 0 2;-34 0 2" dur="7s" repeatCount="indefinite"/>
+    </path>
+    <circle cx="0" cy="2" r="3.4" fill="var(--os)" filter="url(#glow)"/>
+  </g>
+  <text x="716" y="380" font-size="11" class="lbl">contribution radar</text>
+  <text x="716" y="395" font-size="9.5" class="sub">scans builder rooms daily</text>
+  <path d="M 678 404 Q 560 348 428 398" stroke="#233355" stroke-width="4" fill="none"/>
+  <g data-id="radar-valve" data-status="live">
+    <circle class="hoverable" cx="545" cy="371" r="10" fill="#131e36" stroke="var(--live)" stroke-width="2"/>
+    <line x1="545" y1="361" x2="545" y2="352" stroke="var(--live)" stroke-width="2.4"/>
+  </g>
+  <text x="545" y="340" font-size="9" fill="#aeb9d6" text-anchor="middle">dry-run — operator posts by hand</text>
+</g>
+
+<!-- people entering the funnel -->
+<g data-id="world" data-status="live">
+  <line x1="30" y1="400" x2="148" y2="400" stroke="#26324f" stroke-width="3"/>
+  <g id="people"></g>
+  <text x="36" y="432" font-size="12" class="etch">THE WORLD</text>
+  <text x="36" y="448" font-size="9.5" class="sub">the psychographic ICP</text>
+</g>
+
+<!-- ══════════ FLYWHEEL ══════════ -->
+<g data-id="flywheel" data-status="live">
+  <path id="pFly" class="hoverable" d="M 1640 520 C 1500 330 900 240 432 380" fill="none" stroke="#2a2333" stroke-width="7" stroke-linecap="round" opacity=".9"/>
+  <path d="M 1640 520 C 1500 330 900 240 432 380" fill="none" stroke="#4a3040" stroke-width="2.4" opacity=".9"/>
+  <g stroke="#3a3145" stroke-width="2" opacity=".7" fill="none">
+    <path d="M 500 500 C 530 430 560 380 610 340"/>
+    <path d="M 828 596 C 850 470 900 370 1000 292"/>
+    <path d="M 1025 646 C 1060 500 1120 380 1240 286"/>
+    <path d="M 1215 430 C 1230 380 1260 330 1310 298"/>
+    <path d="M 1395 548 C 1420 440 1450 360 1480 312"/>
+    <path d="M 1595 590 C 1605 500 1600 420 1596 366"/>
+  </g>
+  <text x="1080" y="238" font-size="14" class="etch" text-anchor="middle">⟲  THE FLYWHEEL</text>
+  <text x="1080" y="256" font-size="10.5" class="sub" text-anchor="middle">every arm exhales attention — it returns to the funnel and compounds</text>
+</g>
+
+<!-- ══════════ FLOOR SLAB ══════════ -->
+<g data-id="floor" data-status="live">
+  <rect class="hoverable" x="240" y="760" width="1515" height="140" fill="url(#gSlab)" stroke="#26324f" stroke-width="2"/>
+  <line x1="240" y1="760" x2="1755" y2="760" stroke="#33436e" stroke-width="2.4"/>
+  <path id="pHeader" d="M 295 782 H 1650" fill="none" stroke="#1d2a49" stroke-width="6" stroke-linecap="round"/>
+  <text x="1020" y="886" font-size="14" class="etch" text-anchor="middle">T H E   A R M S   ·   the river — ship to learn</text>
+</g>
+
+<!-- ══ MACHINE 1 · STRUVO ══ -->
+<g data-id="struvo" data-status="live">
+  <rect class="hoverable" x="460" y="500" width="260" height="260" rx="12" fill="#151f3a" stroke="#3f5183" stroke-width="2.5" filter="url(#glow)"/>
+  <path d="M 472 552 q -26 6 -26 30 q 0 22 26 26" fill="#131e36" stroke="#3a4a74" stroke-width="2"/>
+  <circle cx="458" cy="580" r="7" fill="var(--attn)" opacity=".9"/>
+  <text x="432" y="618" font-size="9" fill="#8b96b3">voice in</text>
+  <rect x="494" y="536" width="112" height="86" rx="9" fill="#0d1526" stroke="#2c3a60"/>
+  <g stroke="#57668f" stroke-width="3" fill="none">
+    <circle cx="528" cy="578" r="20">
+      <animateTransform attributeName="transform" type="rotate" from="0 528 578" to="360 528 578" dur="9s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="570" cy="586" r="13">
+      <animateTransform attributeName="transform" type="rotate" from="360 570 586" to="0 570 586" dur="6s" repeatCount="indefinite"/>
+    </circle>
+    <line x1="516" y1="566" x2="540" y2="590"/><line x1="540" y1="566" x2="516" y2="590"/>
+  </g>
+  <g data-id="struvo-stt" data-status="live">
+    <rect class="hoverable" x="494" y="636" width="112" height="20" rx="5" fill="#0d1526" stroke="#2c3a60"/>
+    <circle cx="508" cy="646" r="4.4" fill="var(--live)"/><circle cx="524" cy="646" r="4.4" fill="var(--dark)"/><circle cx="540" cy="646" r="4.4" fill="var(--os)"/>
+    <text x="554" y="650" font-size="8.6" fill="#8b96b3">STT failover</text>
+  </g>
+  <g data-id="struvo-gateway" data-status="live">
+    <rect class="hoverable" x="494" y="662" width="112" height="20" rx="5" fill="#0d1526" stroke="#2c3a60"/>
+    <circle cx="508" cy="672" r="4.4" fill="var(--live)"/><circle cx="524" cy="672" r="4.4" fill="#9aa7c9"/><circle cx="540" cy="672" r="4.4" fill="#9aa7c9"/><circle cx="556" cy="672" r="4.4" fill="var(--os)"/>
+    <text x="568" y="676" font-size="8.6" fill="#8b96b3">LLM chain</text>
+  </g>
+  <g data-id="struvo-reports" data-status="live">
+    <rect class="hoverable" x="634" y="560" width="58" height="74" rx="4" fill="#101830" stroke="#3a4a74"/>
+    <rect x="644" y="546" width="58" height="74" rx="4" fill="#141f3c" stroke="#4a5c8c"/>
+    <rect x="654" y="532" width="58" height="74" rx="4" fill="#e8ecf6"/>
+    <g stroke="#7c88a8" stroke-width="2"><line x1="662" y1="548" x2="704" y2="548"/><line x1="662" y1="560" x2="704" y2="560"/><line x1="662" y1="572" x2="692" y2="572"/></g>
+  </g>
+  <g data-id="struvo-voice-agent" data-status="dark">
+    <rect class="hoverable" x="630" y="654" width="84" height="26" rx="6" fill="#131e36" stroke="var(--dark)" stroke-width="1.6"/>
+    <text x="672" y="671" font-size="9" fill="var(--dark)" text-anchor="middle">grok voice · flag off</text>
+  </g>
+  <g data-id="struvo-billing" data-status="blueprint">
+    <rect class="hoverable" x="630" y="688" width="84" height="26" rx="6" fill="none" stroke="var(--blue)" stroke-width="1.6" stroke-dasharray="5 4"/>
+    <text x="672" y="705" font-size="9" fill="var(--blue)" text-anchor="middle">stripe billing — unbuilt</text>
+  </g>
+  <text x="472" y="472" font-size="16" class="lbl">STRUVO</text>
+  <text x="472" y="489" font-size="10" class="sub">voice → field report · a shot on goal</text>
+</g>
+
+<!-- ══ MACHINE 2 · AFP ══ -->
+<g data-id="afp" data-status="live">
+  <rect class="hoverable" x="750" y="596" width="155" height="164" rx="12" fill="#151f3a" stroke="#3f5183" stroke-width="2.5" filter="url(#glow)"/>
+  <g transform="rotate(-32 802 618)">
+    <rect class="hoverable" x="772" y="606" width="76" height="24" rx="10" fill="#131e36" stroke="#4a5c8c" stroke-width="2"/>
+  </g>
+  <g id="envelopes"></g>
+  <path id="pMailOut" d="M 786 596 C 700 400 460 280 60 240" fill="none" stroke="none"/>
+  <path d="M 786 596 C 700 400 460 280 60 240" fill="none" stroke="#3a3145" stroke-width="1.6" stroke-dasharray="3 7" opacity=".6"/>
+  <path id="pMailBack" d="M 50 270 C 460 320 640 480 766 634" fill="none" stroke="none"/>
+  <path d="M 50 270 C 460 320 640 480 766 634" fill="none" stroke="#2f4a3f" stroke-width="1.6" stroke-dasharray="3 7" opacity=".6"/>
+  <rect x="764" y="640" width="70" height="34" rx="6" fill="#0d1526" stroke="#2c3a60"/>
+  <text x="799" y="661" font-size="8.6" fill="#8b96b3" text-anchor="middle">reply hopper</text>
+  <g data-id="afp-router" data-status="live">
+    <rect class="hoverable" x="764" y="682" width="70" height="26" rx="6" fill="#131e36" stroke="var(--live)" stroke-width="1.6"/>
+    <text x="799" y="699" font-size="8.6" fill="var(--live)" text-anchor="middle">lead-router</text>
+  </g>
+  <g data-id="afp-bell" data-status="live" fill="var(--live)">
+    <path class="hoverable" d="M 866 690 q 0 -14 12 -14 q 12 0 12 14 l 4 8 h -32 z" filter="url(#glow)"/>
+    <circle cx="878" cy="702" r="3"/>
+  </g>
+  <text x="878" y="720" font-size="8.4" fill="#8b96b3" text-anchor="middle">telegram</text>
+  <text x="827" y="576" font-size="15" class="lbl" text-anchor="middle">AFP</text>
+  <text x="827" y="592" font-size="9.6" class="sub" text-anchor="middle">cold outreach · warmed senders</text>
+</g>
+
+<!-- ══ MACHINE 3 · TWENTYFIVE ══ -->
+<g data-id="twentyfive" data-status="live">
+  <rect class="hoverable" x="935" y="646" width="180" height="114" rx="12" fill="#151f3a" stroke="#3f5183" stroke-width="2.5" filter="url(#glow)"/>
+  <g stroke="#4a5c8c" stroke-width="2" fill="none">
+    <path d="M 965 704 v -16 h 24 v 16"/>
+    <path d="M 1013 704 v -22 h 24 v 22"/>
+    <path d="M 1061 704 v -16 h 24 v 16"/>
+  </g>
+  <text x="977" y="680" font-size="7.6" fill="#8b96b3" text-anchor="middle">NEW</text>
+  <text x="1025" y="674" font-size="7.6" fill="#8b96b3" text-anchor="middle">PROPOSAL</text>
+  <text x="1073" y="680" font-size="7.6" fill="#8b96b3" text-anchor="middle">WON</text>
+  <line x1="947" y1="706" x2="1103" y2="706" stroke="#2c3a60" stroke-width="5"/>
+  <circle cx="957" cy="716" r="9" fill="#0d1526" stroke="#4a5c8c" stroke-width="2"/>
+  <circle cx="1093" cy="716" r="9" fill="#0d1526" stroke="#4a5c8c" stroke-width="2"/>
+  <g id="leadCards"></g>
+  <text x="1025" y="626" font-size="15" class="lbl" text-anchor="middle">TWENTYFIVE</text>
+  <text x="1025" y="641" font-size="9.6" class="sub" text-anchor="middle">CRM · every lead lands here</text>
+</g>
+
+<!-- ══ MACHINE 4 · FUTURETREE ══ -->
+<g data-id="futuretree" data-status="live">
+  <rect class="hoverable" x="1145" y="690" width="140" height="70" rx="10" fill="#151f3a" stroke="#3f5183" stroke-width="2.5" filter="url(#glow)"/>
+  <path d="M 1215 690 V 600" stroke="#4a5c8c" stroke-width="6" fill="none"/>
+  <g stroke="var(--os)" stroke-width="2.4" fill="none" opacity=".9">
+    <path d="M 1215 640 C 1185 610 1173 580 1167 546"/>
+    <path d="M 1215 616 C 1239 588 1255 566 1263 532"/>
+    <path d="M 1215 600 C 1211 570 1215 540 1223 516"/>
+  </g>
+  <g fill="var(--os)" filter="url(#glow)">
+    <circle cx="1167" cy="546" r="5"/><circle cx="1263" cy="532" r="5"/><circle cx="1223" cy="516" r="5"/>
+  </g>
+  <text x="1215" y="676" font-size="15" class="lbl" text-anchor="middle">FUTURETREE</text>
+  <text x="1215" y="736" font-size="9.2" class="sub" text-anchor="middle">scenario branches</text>
+  <text x="1215" y="750" font-size="8.6" class="sub" text-anchor="middle">pgvector · voyage</text>
+</g>
+
+<!-- ══ MACHINE 5 · INDIE PRESS ══ -->
+<g data-id="indie" data-status="live">
+  <g stroke="#3f5183" stroke-width="2.5" fill="#151f3a" filter="url(#glow)">
+    <rect class="hoverable" x="1315" y="560" width="24" height="200" rx="5"/>
+    <rect class="hoverable" x="1451" y="560" width="24" height="200" rx="5"/>
+    <rect class="hoverable" x="1315" y="548" width="160" height="26" rx="6"/>
+  </g>
+  <g>
+    <rect x="1345" y="588" width="100" height="42" rx="6" fill="#1a2440" stroke="#57668f" stroke-width="2">
+      <animateTransform attributeName="transform" type="translate" values="0 0;0 56;0 56;0 0;0 0" keyTimes="0;.3;.45;.75;1" dur="4.5s" repeatCount="indefinite"/>
+    </rect>
+    <text x="1395" y="614" font-size="10" fill="#cfd8ee" text-anchor="middle" font-weight="700">RitualKit
+      <animateTransform attributeName="transform" type="translate" values="0 0;0 56;0 56;0 0;0 0" keyTimes="0;.3;.45;.75;1" dur="4.5s" repeatCount="indefinite"/>
+    </text>
+  </g>
+  <rect x="1339" y="700" width="112" height="18" rx="4" fill="#0d1526" stroke="#2c3a60"/>
+  <g>
+    <g data-id="indie-vv" data-status="dark">
+      <rect class="hoverable" x="1325" y="726" width="26" height="26" rx="6" fill="#131e36" stroke="var(--dark)" stroke-width="2"/>
+      <text x="1338" y="744" font-size="9.6" fill="var(--dark)" text-anchor="middle" font-weight="700">VV</text>
+    </g>
+    <g data-id="indie-pp" data-status="building">
+      <rect class="hoverable" x="1357" y="726" width="26" height="26" rx="6" fill="#131e36" stroke="var(--bld)" stroke-width="2"/>
+      <text x="1370" y="744" font-size="9.6" fill="var(--bld)" text-anchor="middle" font-weight="700">PP</text>
+    </g>
+    <g data-id="indie-planned" data-status="blueprint" stroke="var(--blue)" stroke-dasharray="4 3" fill="none">
+      <rect class="hoverable" x="1389" y="726" width="26" height="26" rx="6" stroke-width="1.6"/>
+      <rect x="1421" y="726" width="26" height="26" rx="6" stroke-width="1.6"/>
+      <rect x="1453" y="726" width="26" height="26" rx="6" stroke-width="1.6"/>
+    </g>
+  </g>
+  <text x="1395" y="528" font-size="15" class="lbl" text-anchor="middle">INDIE PRESS</text>
+  <text x="1395" y="543" font-size="9.6" class="sub" text-anchor="middle">one engine stamps many apps</text>
+</g>
+
+<!-- ══ MACHINE 6 · BREE'ZE ══ -->
+<g data-id="breeze" data-status="live">
+  <rect class="hoverable" x="1505" y="620" width="150" height="140" rx="12" fill="#151f3a" stroke="#3f5183" stroke-width="2.5" filter="url(#glow)"/>
+  <path d="M 1529 620 L 1555 590 L 1595 590 L 1621 620" fill="#131e36" stroke="#3a4a74" stroke-width="2"/>
+  <rect x="1561" y="574" width="28" height="20" rx="3" fill="#e8ecf6" transform="rotate(12 1575 584)"/>
+  <text x="1631" y="580" font-size="8.6" fill="#8b96b3">ledger photo</text>
+  <ellipse cx="1563" cy="666" rx="26" ry="20" fill="#0d1526" stroke="#57668f" stroke-width="2"/>
+  <path d="M 1563 686 v 18" stroke="var(--attn)" stroke-width="3"/>
+  <g fill="#131e36" stroke="#4a5c8c" stroke-width="1.6">
+    <rect x="1551" y="706" width="11" height="24" rx="3"/><rect x="1567" y="706" width="11" height="24" rx="3"/>
+  </g>
+  <g data-id="breeze-print" data-status="live">
+    <rect class="hoverable" x="1601" y="700" width="42" height="26" rx="5" fill="#131e36" stroke="var(--os)" stroke-width="1.8"/>
+    <rect x="1611" y="726" width="22" height="9" fill="#e8ecf6"/>
+    <text x="1622" y="748" font-size="8" fill="var(--os)" text-anchor="middle">printer</text>
+  </g>
+  <path d="M 1643 726 q 22 30 22 80 v 90" stroke="var(--os)" stroke-width="2.4" stroke-dasharray="5 5" fill="none" opacity=".8"/>
+  <text x="1580" y="600" font-size="15" class="lbl" text-anchor="middle">BREE’ZE</text>
+  <text x="1580" y="614" font-size="9.6" class="sub" text-anchor="middle">the juice press · LIVE</text>
+</g>
+
+<!-- operator + Codex at the intake console -->
+<g data-id="lucas" data-status="live">
+  <rect class="hoverable" x="366" y="722" width="34" height="24" rx="4" fill="#131e36" stroke="#4a5c8c" stroke-width="1.6"/>
+  <circle cx="358" cy="712" r="7" fill="#ffd9a0"/>
+  <rect x="353" y="719" width="10" height="22" rx="4" fill="#ffd9a0"/>
+  <line x1="383" y1="722" x2="392" y2="708" stroke="var(--live)" stroke-width="3"/>
+  <circle cx="393" cy="706" r="3.4" fill="var(--live)"/>
+  <text x="378" y="698" font-size="8.8" fill="#aeb9d6" text-anchor="middle">operator — decide · create</text>
+</g>
+<g data-id="codex" data-status="live">
+  <rect class="hoverable" x="406" y="726" width="16" height="18" rx="4" fill="#131e36" stroke="var(--os)" stroke-width="1.6"/>
+  <circle cx="414" cy="720" r="5" fill="none" stroke="var(--os)" stroke-width="1.6"/>
+  <text x="414" y="756" font-size="7.8" fill="#8b96b3" text-anchor="middle">codex builds</text>
+</g>
+
+<!-- ══════════ RIVERBED / INTELLIGENT OS ══════════ -->
+<rect x="0" y="900" width="2060" height="450" fill="url(#gRock)"/>
+<g stroke="#141e38" stroke-width="2" fill="none" opacity=".9">
+  <path d="M 0 990 Q 300 978 600 992 T 1200 988 T 1800 994 T 2060 988"/>
+  <path d="M 0 1105 Q 300 1093 600 1107 T 1200 1103 T 1800 1109 T 2060 1103"/>
+  <path d="M 0 1215 Q 300 1203 600 1217 T 1200 1213 T 1800 1219 T 2060 1213"/>
+</g>
+<g data-id="hooks" data-status="live">
+  <line class="hoverable" x1="240" y1="908" x2="1755" y2="908" stroke="var(--os)" stroke-width="3" stroke-dasharray="10 8" opacity=".55"/>
+  <text x="1470" y="928" font-size="9.6" fill="var(--os)" opacity=".85">tripwire hooks — every session passes over them</text>
+</g>
+<g data-id="agents-active" data-status="live"><g id="hexActive"></g></g>
+<g data-id="agents-dormant" data-status="dormant"><g id="hexDormant"></g></g>
+<text x="340" y="944" font-size="10.5" fill="#aeb9d6" letter-spacing=".1em">AGENT CORES — 18 lit</text>
+<text x="340" y="1036" font-size="10.5" fill="#5a6a8c" letter-spacing=".1em">17 ASLEEP — wake on keyword</text>
+
+<g data-id="schedulers" data-status="live">
+  <g stroke="#4a5c8c" stroke-width="2.5" fill="#0f1830">
+    <circle class="hoverable" cx="1250" cy="1000" r="34"/>
+    <circle class="hoverable" cx="1318" cy="1016" r="22"/>
+  </g>
+  <g stroke="#7c88a8" stroke-width="2">
+    <line x1="1250" y1="1000" x2="1250" y2="976">
+      <animateTransform attributeName="transform" type="rotate" from="0 1250 1000" to="360 1250 1000" dur="24s" repeatCount="indefinite"/>
+    </line>
+    <line x1="1318" y1="1016" x2="1318" y2="1000">
+      <animateTransform attributeName="transform" type="rotate" from="360 1318 1016" to="0 1318 1016" dur="14s" repeatCount="indefinite"/>
+    </line>
+  </g>
+  <g stroke="#2c3a60" stroke-width="4">
+    <line x1="1250" y1="966" x2="1250" y2="908"/>
+    <line x1="1318" y1="994" x2="1318" y2="908"/>
+  </g>
+  <text x="1250" y="1054" font-size="9.6" fill="#aeb9d6" text-anchor="middle">49 launchd</text>
+  <text x="1318" y="1054" font-size="9.6" fill="#aeb9d6" text-anchor="middle">23 cron</text>
+  <text x="1284" y="1072" font-size="8.8" fill="#5d6c94" text-anchor="middle">the camshafts — time drives the machines</text>
+</g>
+
+<g data-id="memoryspine" data-status="live">
+  <path class="hoverable" d="M 340 1140 H 1500" stroke="var(--os)" stroke-width="3.5" opacity=".8"/>
+  <g stroke="var(--os)" stroke-width="1.4" opacity=".45" fill="none">
+    <path d="M 430 1140 q -12 26 -30 38"/><path d="M 650 1140 q 14 30 34 40"/>
+    <path d="M 880 1140 q -10 28 -26 40"/><path d="M 1110 1140 q 12 26 30 38"/><path d="M 1330 1140 q -10 26 -24 38"/>
+  </g>
+  <g fill="#0f1830" stroke="var(--os)" stroke-width="2">
+    <circle class="hoverable" data-id="mem-files" cx="420" cy="1140" r="12"/>
+    <circle class="hoverable" data-id="mem-wiki" cx="640" cy="1140" r="12"/>
+    <circle class="hoverable" data-id="mem-history" cx="860" cy="1140" r="12"/>
+    <circle class="hoverable" data-id="mem-spinecore" cx="1080" cy="1140" r="12"/>
+    <circle class="hoverable" data-id="mem-codexws" cx="1300" cy="1140" r="12"/>
+  </g>
+  <text x="420" y="1170" font-size="9" fill="#8fd6cf" text-anchor="middle">memory · 258</text>
+  <text x="640" y="1170" font-size="9" fill="#8fd6cf" text-anchor="middle">llm-wiki</text>
+  <text x="860" y="1170" font-size="9" fill="#8fd6cf" text-anchor="middle">history.db</text>
+  <text x="1080" y="1170" font-size="9" fill="#8fd6cf" text-anchor="middle">spine-core</text>
+  <text x="1300" y="1170" font-size="9" fill="#8fd6cf" text-anchor="middle">codex-ws</text>
+  <g data-id="qdrant" data-status="live">
+    <path class="hoverable" d="M 1560 1106 L 1592 1140 L 1560 1174 L 1528 1140 Z" fill="#0f1830" stroke="var(--os)" stroke-width="2.5" filter="url(#glow)"/>
+    <path d="M 1500 1140 H 1528" stroke="var(--os)" stroke-width="3.5" opacity=".8"/>
+    <text x="1560" y="1196" font-size="9" fill="#8fd6cf" text-anchor="middle">qdrant — derived index</text>
+    <path d="M 1560 1106 V 900" stroke="var(--os)" stroke-width="1.8" stroke-dasharray="4 6" opacity=".5"/>
+    <text x="1572" y="1010" font-size="8.4" fill="#5d6c94">RAG riser</text>
+  </g>
+  <text x="820" y="1120" font-size="10.5" fill="#8fd6cf" letter-spacing=".1em">THE MEMORY ROOTS — append-only truth</text>
+</g>
+
+<g data-id="quarantine" data-status="live">
+  <rect x="40" y="964" width="96" height="84" rx="6" fill="none" stroke="#b3543f" stroke-width="2" stroke-dasharray="8 5"/>
+  <text x="88" y="1000" font-size="10" fill="#d97a5f" text-anchor="middle" font-weight="700">OPEN WEB</text>
+  <text x="88" y="1016" font-size="8.4" fill="#b3543f" text-anchor="middle">untrusted</text>
+  <path d="M 136 1006 H 172" stroke="#b3543f" stroke-width="4"/>
+  <g fill="#0f1830" stroke="var(--os)" stroke-width="2">
+    <rect class="hoverable" x="172" y="980" width="52" height="52" rx="5"/>
+    <rect class="hoverable" x="236" y="980" width="52" height="52" rx="5"/>
+  </g>
+  <g stroke="var(--os)" stroke-width="1.4" opacity=".7">
+    <line x1="182" y1="990" x2="214" y2="1022"/><line x1="214" y1="990" x2="182" y2="1022"/>
+    <path d="M 246 992 v 28 M 254 992 v 28 M 262 992 v 28 M 270 992 v 28 M 278 992 v 28"/>
+  </g>
+  <path d="M 288 1006 H 330" stroke="var(--os)" stroke-width="4"/>
+  <text x="230" y="1062" font-size="9.6" fill="var(--os)" text-anchor="middle">QUARANTINE AIRLOCK</text>
+  <text x="230" y="1077" font-size="8.4" fill="#5d6c94" text-anchor="middle">the only door in — content is DATA, not instructions</text>
+</g>
+
+<g data-id="lux" data-status="live">
+  <rect class="hoverable" x="1760" y="950" width="280" height="290" rx="10" fill="#0d1526" stroke="#2c3a60" stroke-width="2.5"/>
+  <circle cx="1848" cy="1050" r="38" fill="#1a1420" stroke="#4a3040" stroke-width="3"/>
+  <circle cx="1848" cy="1050" r="20" fill="var(--attn)" opacity=".85" filter="url(#glowBig)">
+    <animate attributeName="opacity" values=".85;.5;.85" dur="3.4s" repeatCount="indefinite"/>
+  </circle>
+  <text x="1848" y="1112" font-size="9.4" fill="#aeb9d6" text-anchor="middle">GPU furnace · 16GB VRAM</text>
+  <g fill="#131e36" stroke="#3a4a74" stroke-width="1.6">
+    <rect class="hoverable" x="1930" y="1000" width="88" height="24" rx="5"/>
+    <rect class="hoverable" x="1930" y="1032" width="88" height="24" rx="5"/>
+    <rect class="hoverable" x="1930" y="1064" width="88" height="24" rx="5"/>
+  </g>
+  <text x="1974" y="1016" font-size="8.8" fill="#aeb9d6" text-anchor="middle">whisper STT</text>
+  <text x="1974" y="1048" font-size="8.8" fill="#aeb9d6" text-anchor="middle">ollama LLM</text>
+  <text x="1974" y="1080" font-size="8.8" fill="#aeb9d6" text-anchor="middle">qdrant host</text>
+  <text x="1900" y="1170" font-size="11" class="lbl" text-anchor="middle">lux — the engine room</text>
+  <text x="1900" y="1186" font-size="8.8" class="sub" text-anchor="middle">private mesh · local inference</text>
+  <path d="M 1760 1010 Q 1700 1010 1690 940 L 1690 900" stroke="var(--os)" stroke-width="2.4" stroke-dasharray="5 5" fill="none" opacity=".8"/>
+</g>
+
+<text x="1030" y="1300" font-size="14" class="etch" text-anchor="middle">T H E   R I V E R B E D   —   INTELLIGENT OS · locked infrastructure</text>
+
+<!-- particles injected by JS -->
+<g id="particles"></g>
+</svg>
+</div>
+
+<!-- detail panel -->
+<aside id="panel">
+  <button class="btn" id="pclose">✕</button>
+  <h2 id="pTitle"></h2>
+  <div class="chips" id="pChips"></div>
+  <p id="pBlurb"></p>
+  <div class="kv" id="pKv"></div>
+  <div class="kids" id="pKids"></div>
+</aside>
+
+<!-- index drawer -->
+<aside id="drawer">
+  <header>
+    <div style="font-weight:700;letter-spacing:.1em;font-size:12px;margin-bottom:10px">EVERY NODE · <span id="dcount"></span></div>
+    <input id="dsearch" placeholder="search the machine…">
+  </header>
+  <div id="dlist"></div>
+</aside>
+
+<!-- tour card -->
+<div id="tourcard">
+  <h3 id="tTitle"></h3>
+  <p id="tBody"></p>
+  <div class="nav">
+    <button class="btn" id="tPrev">← back</button>
+    <span class="step" id="tStep"></span>
+    <button class="btn" id="tNext">next →</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ───────────────────────── DATA — the full inventory ───────────────────────── */
+/* status: live | dark | building | dormant | blueprint | dead */
+const NODES = {
+/* ── sky / why ── */
+why:{n:"THE WHY",g:"sky",s:"live",b:"The reason the machine exists: comprehend the universe by building it — and hand the leverage down. Everything below is in service of this line.",kv:{canon:"THE-SPINE (public story)"}},
+world:{n:"The world",g:"funnel",s:"live",b:"Strangers walking in from the dark. The ICP is psychographic, not demographic: expression-starved builders who want ideas to become real — including the ones told they're 'doing too much'.",kv:{}},
+/* ── funnel ── */
+funnel:{n:"The Funnel",g:"funnel",s:"building",b:"Attention intake. Strangers fall through the state machine etched on the wall: stranger → aware → subscriber → rsvp → attendee → contributor → ascended → advocate. Instrumented on ATTENTION; dollars arrive downstream and on its own event lines.",kv:{canon:"funnel/FUNNEL-ARCHITECTURE-2026-06.md"},kids:["src-youtube","src-discord","src-skool","src-events","harness","radar"]},
+"src-youtube":{n:"YouTube ×3",g:"funnel",s:"live",b:"Three channels: Struvo, SD AI Studio, AFP. Build-in-public awareness inlet — top of the funnel.",kv:{}},
+"src-discord":{n:"Discord front door",g:"funnel",s:"blueprint",b:"The free, low-friction front door. Email capture + interestedInSkool flag. Designed, not yet stood up.",kv:{}},
+"src-skool":{n:"Skool",g:"funnel",s:"building",b:"Free tier public · member unlock · paid = cohorts, not a monthly drip. Opens only after value-proof and market-proof gates clear.",kv:{}},
+"src-events":{n:"IRL events",g:"funnel",s:"live",b:"Sharathon (monthly, free forever) · weeklies · Build Club (shippers-only, later paid). The room is the trust moment.",kv:{rsvp:"public event RSVP"}},
+harness:{n:"Lead harness (leadkit)",g:"funnel",s:"building",b:"Journey-state truth machine: lead files · index · queue · ledger. Planner→queue→executor, consent re-checked at every send.",kv:{}},
+"gate-1":{n:"GATE 1 — value proof",g:"funnel",s:"building",b:"8-10 droppable artifacts built from the radar's demand-log — real asks, not guesses. Must clear before charging.",kv:{}},
+"gate-2":{n:"GATE 2 — market proof",g:"funnel",s:"blueprint",b:"Warm founding members seeded from IRL + partner rooms before the paid tier opens.",kv:{}},
+/* ── radar ── */
+radar:{n:"Contribution Radar",g:"funnel",s:"live",b:"Watches public builder rooms, classifies helpable posts, drafts plain-voice replies, pings the operator. Dry-run — never auto-posts.",kv:{rule:"HARD RULE: dry-run — never posts unattended"},kids:["radar-scrape","radar-waf","radar-classify","radar-demandlog","radar-telegram","radar-launchd"]},
+"radar-scrape":{n:"Skool scraper",g:"funnel",s:"live",b:"Last-7-day posts + comments, max 50/community, pinned-post skip.",kv:{}},
+"radar-waf":{n:"Session refresh",g:"funnel",s:"live",b:"Session tokens refreshed fail-soft before each run. No credentials live in this map.",kv:{}},
+"radar-classify":{n:"Claude classifier",g:"funnel",s:"live",b:"opus-4-8 primary → sonnet-4-6 fallback; strict JSON {helpable, topic, why, draft_reply, confidence ≥ .6}.",kv:{}},
+"radar-demandlog":{n:"demand-log.md",g:"funnel",s:"live",b:"Every helpable topic appended. This is what tells GATE-1 which artifacts to build — validation-first, demand-pulled.",kv:{}},
+"radar-telegram":{n:"Operator pings",g:"funnel",s:"live",b:"One ping per helpable draft to the operator channel.",kv:{}},
+"radar-launchd":{n:"contribution-radar schedule",g:"funnel",s:"live",b:"Daily morning job. Time drives the dish.",kv:{}},
+"radar-valve":{n:"The dry-run valve",g:"funnel",s:"live",b:"The radar never posts. The operator reads drafts and posts the good ones by hand — rank + goodwill stay human.",kv:{}},
+flywheel:{n:"The Flywheel",g:"funnel",s:"live",b:"Every arm exhales attention (build-in-public content, community contribution, client stories). It arcs back into the funnel and compounds: attract → convert → deliver → compound.",kv:{}},
+/* ── struvo ── */
+struvo:{n:"STRUVO",g:"struvo",s:"live",b:"Voice → field-report SaaS for construction. A shot on goal, not the heart. Next.js · Postgres · Qdrant RAG · object storage. Public beta at beta.struvo.site.",kv:{pricing:"tripwire report + Pro designed; Stripe still blueprint"},kids:["struvo-stt","struvo-gateway","struvo-extract","struvo-photo","struvo-pdf","struvo-intel","struvo-auth","struvo-email-in","struvo-voice-agent","struvo-billing","struvo-obs","struvo-worker","struvo-rust","struvo-reports"]},
+"struvo-stt":{n:"STT failover chain",g:"struvo",s:"live",b:"OpenAI Whisper-1 → Groq whisper-large-v3 (DARK until STT_FALLBACK_* set) → lux faster-whisper. Fails over on 401/402/408/429/5xx.",kv:{file:"src/lib/audio/stt-provider.ts"}},
+"struvo-gateway":{n:"LLM gateway",g:"struvo",s:"live",b:"Claude Sonnet (primary) → GPT → Grok → lux Ollama. Credit/quota/auth/network failures advance the chain.",kv:{file:"src/lib/llm/gateway.ts"}},
+"struvo-extract":{n:"AI extraction engine",g:"struvo",s:"live",b:"Transcript → structured FieldReportContent: observations, action items, attendees. Multi-pass validation + discrepancy detection.",kv:{}},
+"struvo-photo":{n:"7-pass photo captioning",g:"struvo",s:"live",b:"explicit-refs → vision → direction-inference (EXIF + building orientation) → transcript inventory → temporal correlation → captions → QC.",kv:{}},
+"struvo-pdf":{n:"PDF generation (5-tier)",g:"struvo",s:"live",b:"Railway Rust/Typst sidecar → Typst WASM → Puppeteer → HTML → JSON emergency. Letterhead overlay or AI-perfected template.",kv:{}},
+"struvo-intel":{n:"Intelligence / RAG layer",g:"struvo",s:"live",b:"Embeddings → per-firm Qdrant collections, hybrid BM25+vector. Recurring issues, baselines, 'since you were last here'. The upsell engine.",kv:{}},
+"struvo-auth":{n:"Auth (Better Auth)",g:"struvo",s:"live",b:"Multi-tenant orgs, members, reporter tokens for field operators, hashed API keys for /api/v1.",kv:{}},
+"struvo-email-in":{n:"Email-in",g:"struvo",s:"live",b:"reports@in.struvo.site → Resend webhook → full extract+caption+PDF → reply to sender. Idempotent via Vercel KV.",kv:{}},
+"struvo-voice-agent":{n:"Realtime voice agent",g:"struvo",s:"dark",b:"Realtime voice path, read-only tools, feature flag OFF. Built, not beta.",kv:{flag:"voice-agent"}},
+"struvo-billing":{n:"Stripe billing",g:"struvo",s:"blueprint",b:"Pricing designed (tripwire + Pro + Enterprise) but billing is still unbuilt. The honest #1 gap between product and business.",kv:{}},
+"struvo-obs":{n:"Observability",g:"struvo",s:"live",b:"Langfuse traces every LLM call · PostHog product analytics · Sentry errors.",kv:{}},
+"struvo-worker":{n:"Transcribe worker",g:"struvo",s:"live",b:"Bun + ffmpeg on Render — chunked transcription for large audio.",kv:{}},
+"struvo-rust":{n:"Rust PDF sidecar",g:"struvo",s:"live",b:"axum + Typst on Railway. Primary PDF renderer (~15MB body cap).",kv:{}},
+"struvo-reports":{n:"The reports",g:"struvo",s:"live",b:"The output: branded field reports sliding out of the machine. Each one carries an intelligence teaser — the product sells the upgrade.",kv:{}},
+/* ── afp ── */
+afp:{n:"AFP — cold outreach",g:"afp",s:"live",b:"Automation Flow Professionals: the consulting arm and a live cash engine. Mail cannon fires cold email + LinkedIn; replies fall into the hopper; the router triages; hot leads ring the operator bell.",kv:{},kids:["afp-router","afp-bell","afp-heyreach","afp-inboxes"]},
+"afp-router":{n:"struvo-lead-router",g:"afp",s:"live",b:"Active agent watching reply inboxes: classifies hot/warm/cold, archives noise, forwards hot instantly.",kv:{}},
+"afp-bell":{n:"Operator bell",g:"afp",s:"live",b:"Hot lead → operator channel, instantly. Human still answers.",kv:{}},
+"afp-heyreach":{n:"HeyReach LinkedIn",g:"afp",s:"live",b:"Multi-account LinkedIn outreach automation.",kv:{}},
+"afp-inboxes":{n:"Reply inboxes",g:"afp",s:"live",b:"Gmail reply-domain mailboxes. Inbound links go through the quarantine airlock — email bodies are untrusted.",kv:{}},
+/* ── twentyfive ── */
+twentyfive:{n:"TWENTYFIVE",g:"t25",s:"live",b:"The CRM — every lead from every source lands on this conveyor and moves through the stage arches to WON. Proof of capability + flywheel instrumentation.",kv:{},kids:["t25-intake","t25-scoring","t25-webhooks"]},
+"t25-intake":{n:"Multi-source intake",g:"t25",s:"live",b:"Cold email, Upwork, partner, referral → one pipeline, tagged by source, zero double-entry.",kv:{}},
+"t25-scoring":{n:"Lead scoring",g:"t25",s:"live",b:"CRM agents rank and route incoming leads.",kv:{}},
+"t25-webhooks":{n:"Survey webhooks → FutureTree",g:"t25",s:"blueprint",b:"HMAC 30/60/90-day survey pushes. Designed; verify wired before trusting.",kv:{}},
+/* ── futuretree ── */
+futuretree:{n:"FUTURETREE",g:"ftree",s:"live",b:"Strategic-intelligence platform: scenario branches growing from a terminal. Next.js + FastAPI · pgvector (not Qdrant) · Voyage embeddings · LangGraph.",kv:{},kids:["ftree-web","ftree-ai","ftree-express"]},
+"ftree-web":{n:"Next.js front end",g:"ftree",s:"live",b:"ReactFlow node graphs, scenario UI. Port 3001 on Vercel.",kv:{}},
+"ftree-ai":{n:"FastAPI ai-service",g:"ftree",s:"live",b:"LangGraph orchestration + semantic path matching. Port 8000 on Railway.",kv:{}},
+"ftree-express":{n:"Express server/",g:"ftree",s:"dead",b:"Vestigial. Do not extend.",kv:{}},
+/* ── indie ── */
+indie:{n:"INDIE PRESS",g:"indie",s:"live",b:"One Swift engine (RitualKit — the ram) stamps many niche apps. Organic distribution picks the winner. Funnel assets, judged on attention.",kv:{},kids:["indie-vv","indie-pp","indie-planned","indie-ritualkit","indie-finflow"]},
+"indie-ritualkit":{n:"RitualKit (the ram)",g:"indie",s:"live",b:"Pure Swift SPM: StreakRules, ReviewStore, adaptive per-word mastery. An app = a thin NicheConfig reskin. The seam is the leverage.",kv:{}},
+"indie-vv":{n:"Verse Victory",g:"indie",s:"dark",b:"Lead app, full KJV bundled, lean V1 merged. Built — 7 Apple steps gate the ship. Redesign = subtraction (one gesture-driven card).",kv:{}},
+"indie-pp":{n:"Praise Pause",g:"indie",s:"building",b:"Second stamp from the same engine, in progress.",kv:{}},
+"indie-planned":{n:"Queued stamps",g:"indie",s:"blueprint",b:"Praise Paws · Digital Wonder Bible · 369 — blueprint tiles waiting for the press.",kv:{}},
+"indie-finflow":{n:"FinFlow",g:"indie",s:"dormant",b:"Personal-finance app. Replit-cloud-only — NOT on disk. One of 14 Replit apps.",kv:{}},
+/* ── breeze ── */
+breeze:{n:"BREE'ZE SQUEEZE",g:"breeze",s:"live",b:"Juice business — live at breeze-squeeze.vercel.app. A photo of the paper ledger becomes real orders: vision OCR → editable drafts → promote → bottles + labels.",kv:{},kids:["breeze-vision","breeze-review","breeze-print"]},
+"breeze-vision":{n:"Vision OCR intake",g:"breeze",s:"live",b:"Ledger/receipt/menu photo → Claude vision → ledger_batches + order_drafts.",kv:{}},
+"breeze-review":{n:"Human review gate",g:"breeze",s:"live",b:"Editable draft UI — nothing becomes a real order without a human approve.",kv:{}},
+"breeze-print":{n:"Label printer bridge",g:"breeze",s:"live",b:"Local print bridge on the engine-room box, reached over a private mesh.",kv:{}},
+/* ── finance ── */
+finance:{n:"Finance Spine",g:"finance",s:"live",b:"Every arm's dollar pipe joins this main. Deterministic code does the math (ledger→classify→rollup→snapshot); agents only orchestrate.",kv:{},kids:["fin-captable","fin-sweeps","fin-controller"]},
+"fin-controller":{n:"enterprise-controller",g:"finance",s:"live",b:"Active agent: ingests Mercury CSV, classifies the tail, runs the rollup, emits enterprise-snapshot.json.",kv:{}},
+"fin-captable":{n:"cap-table valve",g:"finance",s:"dormant",b:"Construction-vertical partner split. Dormant agent — wakes on a statement request. Terms stay off this public map.",kv:{}},
+"fin-sweeps":{n:"Sweep manifold",g:"finance",s:"dormant",b:"Tax · reserve · marketing sweeps on operating surplus. Dormant agent — wakes monthly. Ratios stay in private ops.",kv:{}},
+gate:{n:"THE GATE — $10K → $30K MRR",g:"finance",s:"live",b:"The dam between cash and hard assets. No land, no solar, no robots until recurring revenue clears the marks. Gauge on this map is illustrative, not a live bank feed. The gate is the plan, not a punishment.",kv:{}},
+/* ── endgame ── */
+endgame:{n:"THE ENDGAME",g:"endgame",s:"blueprint",b:"What the machine buys: the homestead in the dawn light. Sequence is deliberate — home/land FIRST, solar as a rider on an owned roof, compute + robots RENTED (GPUs depreciate 60-85%/cycle). Order is the strategy.",kv:{},kids:["end-home","end-solar","end-robot","end-vault","end-family","end-robotics-arc"]},
+"end-home":{n:"Home + land",g:"endgame",s:"blueprint",b:"First hard asset. The anchor.",kv:{}},
+"end-solar":{n:"Solar",g:"endgame",s:"blueprint",b:"Only on an owned roof — never before the land.",kv:{}},
+"end-robot":{n:"Compute + robots",g:"endgame",s:"blueprint",b:"RENTED, never owned. Depreciation eats owners.",kv:{}},
+"end-vault":{n:"Surplus vehicle",g:"endgame",s:"blueprint",b:"Tesla / SpaceX / AI public equity as the overflow spillway.",kv:{}},
+"end-family":{n:"Rhea & Bree",g:"endgame",s:"live",b:"Already real. The machine exists so the time is theirs.",kv:{}},
+"end-robotics-arc":{n:"Robotics dispatch (5-7 yr)",g:"endgame",s:"blueprint",b:"The long arc: Struvo's ops-data corpus becomes the dispatch layer for construction robotics.",kv:{}},
+"hidden-asset-0":{n:"Hidden Asset #0",g:"endgame",s:"building",b:"Owner-independent product equity. The machine's first real asset is the machine itself — no invented valuation on this map.",kv:{}},
+/* ── OS ── */
+floor:{n:"The factory floor",g:"os",s:"live",b:"Where the arms stand. Above the floor = the river (ship to learn). Below = the riverbed (locked).",kv:{}},
+lucas:{n:"Operator — at the console",g:"os",s:"live",b:"The operator. Decides and creates; approves everything outward-facing; the agents do the 24/7 grunt work.",kv:{}},
+codex:{n:"Codex — the builder",g:"os",s:"live",b:"Claude architects and reviews; Codex builds. Plans flow one way, builds flow back for review.",kv:{}},
+hooks:{n:"Tripwire hooks",g:"os",s:"live",b:"Hooks under the floor: memory injection, dormant wake-check, egress guard, leak guard, runbook sentinel, typecheck, checkpoint. Every session passes over them.",kv:{}},
+schedulers:{n:"The camshafts — 49 launchd + 23 cron",g:"os",s:"live",b:"Time drives the machines: qdrant ingest 2h, session capture 15m, digests, meeting-sweep, converge, radar 8am, backups, idea-court, ship-syndicate.",kv:{}},
+"agents-active":{n:"18 agent cores — lit",g:"os",s:"live",b:"chief-of-staff · daily-ops · file-oracle · security-lead · content-fanout · yt-producer · web-producer · freelance-sales · enterprise-controller · struvo-ops-lead · struvo-dev · struvo-lead-router · struvo-pricing-checker · struvo-roadmap-decider · twentyfive-dev · link-preview · image-preview · research-proxy.",kv:{}},
+"agents-dormant":{n:"17 asleep — wake on keyword",g:"os",s:"dormant",b:"Struvo biz-ops tiers (market-intel, account-health, insight-synth, nurture, continuity, reactivation, referral, vertical-cloner, cap-table, scorp, challenge-coach, quality-arb, audio-to-asset, pdf-upsell) + finflow-dev + futuretree-dev + finalize-audit.",kv:{}},
+memoryspine:{n:"The memory roots",g:"os",s:"live",b:"Append-only typed truth: 258 memory files · llm-wiki · history.db · spine-core · codex-workspace. The roots feed the Qdrant crystal — truth is files, vectors are derived.",kv:{pattern:"The Spine Pattern (house standard)"}},
+"mem-files":{n:"File memory · 258",g:"os",s:"live",b:"user/feedback/project/reference records, injected into every session by the context injector hook.",kv:{}},
+"mem-wiki":{n:"LLM wiki",g:"os",s:"live",b:"Append-only decisions · synthesis · lessons · counterfactuals, backlinked and consolidated nightly.",kv:{}},
+"mem-history":{n:"History spine",g:"os",s:"live",b:"ALL browsing/YouTube/search history harvested weekly into SQLite.",kv:{}},
+"mem-spinecore":{n:"spine-core",g:"os",s:"building",b:"Typed append-only JSON spine tooling — tooling stage, few spine files yet.",kv:{}},
+"mem-codexws":{n:"Codex workspace",g:"os",s:"live",b:"Disk-grounded identity/context/playbooks for Codex handoffs.",kv:{}},
+qdrant:{n:"Qdrant — the derived index",g:"os",s:"live",b:"Vector search over everything the roots hold. Rebuildable; never the truth. Feeds Struvo RAG and /recall.",kv:{}},
+quarantine:{n:"Quarantine airlock",g:"os",s:"live",b:"The ONLY door from the open web: link-preview, image-preview, research-proxy — sandboxed contexts with no shell, no secrets, no spawn. Untrusted content is DATA, not instructions. Injection defense by architecture.",kv:{canon:"business-ops/security/PROMPT-INJECTION-DEFENSE.md"}},
+lux:{n:"lux — the engine room",g:"os",s:"live",b:"Local Linux GPU box. Runs Whisper, Ollama, Qdrant, print bridge, operator alerts. Private inference on a mesh — addresses stay off this map.",kv:{}},
+/* ── externals (index-only, fly to nearest hero) ── */
+"ext-anthropic":{n:"Anthropic / Claude",g:"ext",s:"live",b:"Primary intelligence everywhere: Struvo extraction, radar classify, agents, Claude Code itself.",fly:"struvo"},
+"ext-openai":{n:"OpenAI",g:"ext",s:"live",b:"Whisper STT primary + embeddings + LLM gateway tier-2. Codex is the builder half.",fly:"struvo"},
+"ext-groq":{n:"Groq",g:"ext",s:"dark",b:"STT failover — dark until STT_FALLBACK_* env set.",fly:"struvo"},
+"ext-xai":{n:"xAI / Grok",g:"ext",s:"dark",b:"LLM gateway tier-3 + realtime voice (flag off).",fly:"struvo"},
+"ext-gemini":{n:"Google Gemini",g:"ext",s:"live",b:"Alt vision for photo captioning pass-1.",fly:"struvo"},
+"ext-voyage":{n:"Voyage AI",g:"ext",s:"live",b:"FutureTree embeddings.",fly:"futuretree"},
+"ext-exa":{n:"Exa.ai",g:"ext",s:"live",b:"Research inlet (via research-proxy quarantine).",fly:"quarantine"},
+"ext-vercel":{n:"Vercel",g:"ext",s:"live",b:"Hosts Struvo, FutureTree web, Bree'ze.",fly:"struvo"},
+"ext-railway":{n:"Railway",g:"ext",s:"live",b:"Hosts TwentyFive, Struvo Rust sidecar, FutureTree ai-service.",fly:"twentyfive"},
+"ext-render":{n:"Render",g:"ext",s:"live",b:"Hosts the Struvo transcribe worker.",fly:"struvo"},
+"ext-neon":{n:"Neon Postgres",g:"ext",s:"live",b:"Struvo · TwentyFive · Bree'ze · funnel consent authority.",fly:"struvo"},
+"ext-r2":{n:"Cloudflare R2",g:"ext",s:"live",b:"Struvo audio/photos/PDFs/letterheads.",fly:"struvo"},
+"ext-stripe":{n:"Stripe",g:"ext",s:"blueprint",b:"Designed into pricing v4; not yet in the codebase.",fly:"struvo"},
+"ext-mercury":{n:"Mercury",g:"ext",s:"live",b:"Business banking — CSV feeds the finance spine.",fly:"finance"},
+"ext-revenuecat":{n:"RevenueCat",g:"ext",s:"building",b:"iOS paywall for the indie press apps.",fly:"indie"},
+"ext-appstore":{n:"Apple App Store",g:"ext",s:"building",b:"A Rhea of Hope bundle — 7 steps gate Verse Victory's ship.",fly:"indie"},
+"ext-replit":{n:"Replit",g:"ext",s:"live",b:"FinFlow + 14 personal apps, cloud-only.",fly:"indie"},
+"ext-resend":{n:"Resend",g:"ext",s:"live",b:"Struvo email-in/out + funnel newsletter sends.",fly:"struvo"},
+"ext-telegram":{n:"Operator messenger",g:"ext",s:"live",b:"The notification nervous system: radar drafts, hot leads, converge, alerts.",fly:"afp"},
+"ext-gmail":{n:"Gmail",g:"ext",s:"live",b:"AFP reply inboxes + MCP access.",fly:"afp"},
+"ext-skool":{n:"Skool API",g:"ext",s:"live",b:"The radar's room target. Dry-run only.",fly:"radar"},
+"ext-luma":{n:"Lu.ma",g:"ext",s:"live",b:"Event RSVP + check-in, 3-question skill buckets.",fly:"funnel"},
+"ext-discordapi":{n:"Discord",g:"ext",s:"blueprint",b:"The free front door, to be stood up.",fly:"funnel"},
+"ext-youtube":{n:"YouTube",g:"ext",s:"live",b:"3 channels — awareness inlet.",fly:"funnel"},
+"ext-heyreach":{n:"HeyReach",g:"ext",s:"live",b:"LinkedIn outreach automation.",fly:"afp"},
+"ext-tailscale":{n:"Private mesh",g:"ext",s:"live",b:"Operator laptop ↔ engine-room box. Addresses stay off this map.",fly:"lux"},
+"ext-github":{n:"GitHub (3 orgs)",g:"ext",s:"live",b:"Lucface · SanDiegoAIStudio · ARheaOfHope.",fly:"lucas"},
+"ext-1password":{n:"1Password (op)",g:"ext",s:"live",b:"Service-account CLI — secrets injected at runtime, never in context.",fly:"quarantine"},
+"ext-langfuse":{n:"Langfuse",g:"ext",s:"live",b:"Every Struvo LLM call traced.",fly:"struvo"},
+"ext-posthog":{n:"PostHog",g:"ext",s:"live",b:"Struvo product analytics.",fly:"struvo"},
+"ext-sentry":{n:"Sentry",g:"ext",s:"live",b:"Struvo error monitoring.",fly:"struvo"},
+"ext-kv":{n:"Vercel KV",g:"ext",s:"live",b:"Email-in idempotency keys.",fly:"struvo"}
+};
+
+/* index-only children (fly to parent hero) — completes the inventory */
+const EXTRA = [
+ /* struvo capabilities */
+ ["cap-streaming","Streaming extraction","struvo","live","SSE-streamed report generation.","struvo"],
+ ["cap-chat","Chat refinement","struvo","live","Conversational report editing.","struvo"],
+ ["cap-versions","Version history","struvo","live","Report versioning + recovery.","struvo"],
+ ["cap-email-dist","Email distribution","struvo","live","Report delivery to stakeholders.","struvo"],
+ ["cap-discrepancy","Discrepancy detection","struvo","live","RAG spec cross-reference on extraction.","struvo"],
+ ["cap-historical","Historical intelligence","struvo","live","'Since you were last here' engine.","struvo"],
+ ["cap-continuity","Project continuity","struvo","live","Cross-report project threading.","struvo"],
+ ["cap-textagent","Text agent","struvo","live","SMS/text-based capture path.","struvo"],
+ ["cap-saveflow","Save flow + confidence","struvo","live","Save orchestration, confidence scoring, drag-reorder.","struvo"],
+ ["struvo-neon","Neon Postgres","struvo","live","Report / project / auth CRUD.","struvo"],
+ ["struvo-qdrant","Per-firm Qdrant collections","struvo","live","Hosted on lux; hybrid BM25+vector.","struvo"],
+ ["struvo-r2","R2 buckets","struvo","live","audio · photos · pdfs · letterheads · clips.","struvo"],
+ ["struvo-staging","struvo-staging","struvo","live","staging.struvo.site on Vercel.","struvo"],
+ ["struvo-api","External REST API /api/v1","struvo","live","SHA-256 hashed API keys.","struvo"],
+ ["struvo-intake","Field operator intake","struvo","live","Firm-branded reporter-token intake URL.","struvo"],
+ /* struvo fleet — active */
+ ["ag-ops-lead","struvo-ops-lead","fleet","live","Fleet dispatcher by business phase.","agents-active"],
+ ["ag-pricing","struvo-pricing-checker","fleet","live","APPROVE/REJECT/REVISE gate on any price move.","agents-active"],
+ ["ag-roadmap","struvo-roadmap-decider","fleet","live","GO/CUT/DEFER gate on any feature.","agents-active"],
+ ["ag-leadrouter","struvo-lead-router","fleet","live","AFP reply triage → Telegram.","agents-active"],
+ ["ag-struvodev","struvo-dev","fleet","live","Product dev agent for the Struvo repo.","agents-active"],
+ /* struvo fleet — dormant */
+ ["ag-audio","struvo-audio-to-asset","fleet","dormant","Partner voice memos → scripts/decks/posts.","agents-dormant"],
+ ["ag-market","struvo-market-intel","fleet","dormant","Competitor scans → Telegram alerts + Sunday digest.","agents-dormant"],
+ ["ag-health","struvo-account-health","fleet","dormant","Churn flags + cancel interception.","agents-dormant"],
+ ["ag-pdfupsell","struvo-pdf-upsell","fleet","dormant","Intelligence teasers injected into every PDF.","agents-dormant"],
+ ["ag-insight","struvo-insight-synth","fleet","dormant","Cross-report patterns → gated upsell emails.","agents-dormant"],
+ ["ag-nurture","struvo-post-demo-nurture","fleet","dormant","3-email personalized post-demo sequence.","agents-dormant"],
+ ["ag-continuity","struvo-continuity-broker","fleet","dormant","Per-report → subscription converter.","agents-dormant"],
+ ["ag-reactivation","struvo-reactivation","fleet","dormant","Win-back campaigns from usage history.","agents-dormant"],
+ ["ag-referral","struvo-referral","fleet","dormant","Referral loop, Stripe credits, fraud flags.","agents-dormant"],
+ ["ag-cloner","struvo-vertical-cloner","fleet","dormant","Clones full GTM for new verticals.","agents-dormant"],
+ ["ag-captable","struvo-cap-table","fleet","dormant","Partner statements for the construction vertical.","agents-dormant"],
+ ["ag-scorp","struvo-scorp-controller","fleet","dormant","S-Corp sweeps + distributable + comp test.","agents-dormant"],
+ ["ag-coach","struvo-challenge-coach","fleet","dormant","5-day onboarding challenge emails.","agents-dormant"],
+ ["ag-qualityarb","struvo-quality-arb","fleet","dormant","Blind model A/B on report quality.","agents-dormant"],
+ ["ag-finalize","struvo-finalize-audit","fleet","dormant","Samples the finalize sanity-checker for drift.","agents-dormant"],
+ ["ag-finflowdev","finflow-dev","fleet","dormant","FinFlow dev agent — wakes on explicit request.","agents-dormant"],
+ ["ag-ftreedev","futuretree-dev","fleet","dormant","FutureTree dev agent — wakes on explicit request.","agents-dormant"],
+ ["ag-pydantic","Planned production fleet","fleet","blueprint","Autonomous production services mirroring the roles. Designed, unbuilt. No invented ROI on this map.","agents-dormant"],
+ /* cross-cutting active agents */
+ ["ag-cos","chief-of-staff","fleet","live","Daily executive briefing + cross-dept triage.","agents-active"],
+ ["ag-dailyops","daily-ops","fleet","live","Morning briefing, runbook triage, EOD digest.","agents-active"],
+ ["ag-fileoracle","file-oracle","fleet","live","Knows where everything lives; distributes content.","agents-active"],
+ ["ag-seclead","security-lead","fleet","live","Threat models, audits, tool-install gates.","agents-active"],
+ ["ag-fanout","content-fanout","fleet","live","One input → hub + YT + LinkedIn + X, voice-enforced, human-gated.","agents-active"],
+ ["ag-ytprod","yt-producer","fleet","live","13-skill YouTube pipeline director.","agents-active"],
+ ["ag-webprod","web-producer","fleet","live","Full web-build conductor: design→deploy.","agents-active"],
+ ["ag-freelance","freelance-sales","fleet","live","Upwork proposals, cold email, pipeline.","agents-active"],
+ ["ag-entctrl","enterprise-controller","fleet","live","Finance ingestion + rollup orchestration.","agents-active"],
+ ["ag-t25dev","twentyfive-dev","fleet","live","TwentyFive CRM dev agent.","agents-active"],
+ ["ag-linkprev","link-preview-subagent","fleet","live","Quarantined URL fetcher — no shell, no secrets.","quarantine"],
+ ["ag-imgprev","image-preview-subagent","fleet","live","Quarantined image analyzer.","quarantine"],
+ ["ag-resproxy","research-proxy","fleet","live","Quarantined research gateway — sanitizes every page.","quarantine"],
+ /* hooks by event */
+ ["hk-prompt","UserPromptSubmit ×9","os","live","memory-injector · dormant-wake · skill-wake · fuse-gate · go-posture · pp-surface…","hooks"],
+ ["hk-pretool","PreToolUse ×11","os","live","egress-guard · release-gate · block-destructive · quality-gate · diff-sentry · collision-guard…","hooks"],
+ ["hk-posttool","PostToolUse ×10","os","live","typecheck · no-any · no-console · auto-format · plan-indexer · inbox-watcher…","hooks"],
+ ["hk-stop","Stop ×8","os","live","runbook-sentinel · auto-checkpoint · pp-stop · session-save · cost-tracker…","hooks"],
+ ["hk-session","SessionStart/End","os","live","project-init · precompact-rehydrate · session-end capture.","hooks"],
+ ["hk-leakguard","git-leak-guard","os","live","Global pre-push: blocks home-paths/secrets → public GitHub.","hooks"],
+ /* scheduler notables */
+ ["sc-qdrant","qdrant ingest (2h)","os","live","Sessions + content → vectors.","schedulers"],
+ ["sc-capture","session capture (15m)","os","live","Transcripts indexed for /recall.","schedulers"],
+ ["sc-digest","daily digest (6am)","os","live","The morning email.","schedulers"],
+ ["sc-converge","converge (4:30am + nightly)","os","live","All open chats → strategic roll-up.","schedulers"],
+ ["sc-meeting","meeting-sweep (6am)","os","live","Recordings → transcripts → homes.","schedulers"],
+ ["sc-history","history-harvest (weekly)","os","live","Browser/YT/search → history.db.","schedulers"],
+ ["sc-backup","mac→lux + B2 backups","os","live","The 3-2-1 spine.","schedulers"],
+ ["sc-shipsynd","ship-syndicate (Mon 9:07)","os","live","1 ship → 8 assets, gated.","schedulers"],
+ ["sc-ideacourt","idea-court (4:30am)","os","live","Idea Garden judge → 6:30 email.","schedulers"],
+ ["sc-morningteam","morning-team (4:45am)","os","dark","Codex dawn crew — STAGED + DISARMED until the bill.","schedulers"],
+ /* funnel extras */
+ ["fn-newsletter","Newsletter system","funnel","building","Static C1-C3 always-send + generative C4-C8 review-queued. Never auto-sends generative.","funnel"],
+ ["fn-statemachine","Funnel state machine","funnel","building","Stranger→Aware→Subscriber→RSVP→Attendee→Contributor→Ascended→Advocate (+Dormant/Suppressed).","funnel"],
+ ["fn-tiers","4 access tiers","funnel","building","Public → List → Member (showed up IRL) → Inner (Build Club).","funnel"],
+ ["fn-buckets","5 skill buckets","funnel","live","Newbie · Mid · AI Ninja · Vet Dev · Vibe-only — IRL mentor pairing.","funnel"],
+ ["fn-sharathon","Sharathon","funnel","live","Monthly, free forever: demos → live build → show-and-tell → pairing.","src-events"],
+ ["fn-buildclub","Build Club","funnel","blueprint","Shippers-only inner ring; later a paid cohort.","src-events"],
+ ["fn-lobster","Lobster + Laptop","funnel","blueprint","Paid IRL → unlocks free Skool months.","src-events"],
+ /* misc arms */
+ ["qb","Quarterback","arms","blueprint","AI compliance-reporting for utility construction — a parked Struvo-class shot.","struvo"],
+ ["bbc","Studio client","arms","live","Video-agency client; CRM live. Name stays off the public map.","twentyfive"],
+ ["vv-nate","Distribution partner","arms","building","App-flip: partner markets, studio builds. Engine → Verse Victory → Praise Pause.","indie"],
+ /* endgame data */
+ ["end-arr","Owner-independent milestone","endgame","blueprint","The sellable-equity milestone behind Hidden Asset #0. Numbers stay in private ops.","endgame"]
+];
+for (const [id,n,g,s,b,fly] of EXTRA) NODES[id]={n,g,s,b,kv:{},fly};
+
+/* group labels for the index */
+const GROUPS = {sky:"The Why",funnel:"Funnel + Radar",struvo:"Struvo",afp:"AFP",t25:"TwentyFive",ftree:"FutureTree",indie:"Indie Press",breeze:"Bree'ze Squeeze",finance:"Finance + Gate",endgame:"Endgame",os:"Intelligent OS",fleet:"Agent Fleet",arms:"Side Arms",ext:"External Systems"};
+
+/* ───────────────────────── procedural scene bits ───────────────────────── */
+const svg = document.getElementById("scene");
+const NS = "http://www.w3.org/2000/svg";
+function el(t,a,parent){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(parent)parent.appendChild(e);return e}
+
+/* stars */
+(function(){const g=document.getElementById("stars");
+for(let i=0;i<70;i++){const x=Math.random()*2000,y=Math.random()*430+16,r=Math.random()*1.5+.5;
+  const o=Math.max(.08,(1-x/2200))*(Math.random()*.7+.3);
+  el("circle",{cx:x.toFixed(0),cy:y.toFixed(0),r:r.toFixed(1),fill:"#cfe0ff",opacity:o.toFixed(2)},g);}})();
+
+/* funnel etch: the state machine on the wall (center 295, mouth half 136 → spout half 18) */
+(function(){const g=document.getElementById("funnelEtch");
+const st=["stranger","aware","subscriber","rsvp","attendee","contributor","ascended","advocate"];
+st.forEach((s,i)=>{const t=i/(st.length-1);const y=418+t*182;
+  const half=132+(20-132)*t;
+  el("line",{x1:295-half,y1:y,x2:295-half+10,y2:y,stroke:"#3a4a74","stroke-width":1.4},g);
+  const tx=el("text",{x:295,y:y+3,"text-anchor":"middle"},g);tx.textContent=s;});})();
+
+/* agent hexes */
+function hex(cx,cy,r){let p="";for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/6;
+  p+=(i?"L":"M")+(cx+r*Math.cos(a)).toFixed(1)+" "+(cy+r*Math.sin(a)).toFixed(1)+" ";}return p+"Z"}
+(function(){
+ const act=["chief-of-staff","daily-ops","file-oracle","security-lead","content-fanout","yt-producer","web-producer","freelance-sales","enterprise-controller","struvo-ops-lead","struvo-dev","struvo-lead-router","struvo-pricing-checker","struvo-roadmap-decider","twentyfive-dev","link-preview","image-preview","research-proxy"];
+ const dor=["market-intel","account-health","insight-synth","post-demo-nurture","continuity-broker","reactivation","referral","vertical-cloner","cap-table","scorp-controller","challenge-coach","quality-arb","audio-to-asset","pdf-upsell","finalize-audit","finflow-dev","futuretree-dev"];
+ const ga=document.getElementById("hexActive"),gd=document.getElementById("hexDormant");
+ act.forEach((n,i)=>{const cx=352+i*44,cy=968;
+   const h=el("path",{d:hex(cx,cy,14),fill:"#0f2430",stroke:"var(--os)","stroke-width":2,filter:"url(#glow)"},ga);
+   const t=document.createElementNS(NS,"title");t.textContent=n;h.appendChild(t);
+   el("circle",{cx,cy,r:3.4,fill:"var(--os)"},ga);});
+ dor.forEach((n,i)=>{const cx=352+i*44,cy=1060;
+   const h=el("path",{d:hex(cx,cy,13),fill:"none",stroke:"#3a4664","stroke-width":1.6},gd);
+   const t=document.createElementNS(NS,"title");t.textContent=n+" (dormant)";h.appendChild(t);});
+})();
+
+/* conveyor lead cards */
+(function(){const g=document.getElementById("leadCards");
+ for(let i=0;i<3;i++){const c=el("rect",{x:0,y:0,width:20,height:13,rx:2.5,fill:"#dfe6f5"},g);
+  const am=el("animateMotion",{dur:(7+i*.9)+"s",repeatCount:"indefinite",begin:(i*2.2)+"s"},c);
+  am.setAttribute("path","M 953 692 H 1097");}})();
+
+/* envelopes on the mail arcs */
+(function(){const g=document.getElementById("envelopes");
+ for(let i=0;i<3;i++){const e=el("rect",{x:-7,y:-5,width:14,height:10,rx:1.5,fill:"#e8ecf6",opacity:.9},g);
+  const am=el("animateMotion",{dur:"6s",repeatCount:"indefinite",begin:(i*2)+"s"},e);
+  el("mpath",{href:"#pMailOut"},am);}
+ for(let i=0;i<2;i++){const e=el("rect",{x:-6,y:-4,width:12,height:8,rx:1.5,fill:"#9fd9b8",opacity:.85},g);
+  const am=el("animateMotion",{dur:"7s",repeatCount:"indefinite",begin:(i*3.2)+"s"},e);
+  el("mpath",{href:"#pMailBack"},am);}})();
+
+/* flow particles */
+(function(){const g=document.getElementById("particles");
+ const flows=[
+  ["pDrop",4,2.6,"var(--attn)",3.4],
+  ["pHeader",10,7.5,"var(--attn)",3],
+  ["pFly",9,9,"var(--attn)",3.6],
+  ["pCashMain",9,8,"var(--cash)",3.4],
+  ["pCashFin",4,4.2,"var(--cash)",3.4]
+ ];
+ for(const [pid,count,dur,color,r] of flows){
+  for(let i=0;i<count;i++){
+   const c=el("circle",{r,fill:color,opacity:.9,filter:"url(#glow)"},g);
+   const am=el("animateMotion",{dur:dur+"s",repeatCount:"indefinite",begin:(-i*dur/count).toFixed(2)+"s"},c);
+   el("mpath",{href:"#"+pid},am);}}})();
+
+/* people walking in */
+(function(){const g=document.getElementById("people");
+ for(let i=0;i<5;i++){const px=52+i*22,py=396;
+  const f=el("g",{opacity:(0.4+i*0.13).toFixed(2)},g);
+  el("circle",{cx:px,cy:py-16,r:5,fill:"#aeb9d6"},f);
+  el("rect",{x:px-3.6,y:py-11,width:7.2,height:15,rx:3,fill:"#aeb9d6"},f);}})();
+
+/* ───────────────────────── pan / zoom ───────────────────────── */
+const FULL={x:0,y:0,w:2400,h:1350};
+let vb={...FULL};
+function applyVB(){svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`)}
+const stage=document.getElementById("stage");
+function clientToScene(cx,cy){const r=stage.getBoundingClientRect();
+ const sc=Math.max(vb.w/r.width,vb.h/r.height);
+ const ox=(r.width-vb.w/sc)/2,oy=(r.height-vb.h/sc)/2;
+ return {x:vb.x+(cx-r.left-ox)*sc,y:vb.y+(cy-r.top-oy)*sc}}
+stage.addEventListener("wheel",e=>{e.preventDefault();
+ const p=clientToScene(e.clientX,e.clientY);
+ const f=Math.pow(1.0016,e.deltaY);const nw=Math.min(4200,Math.max(140,vb.w*f));
+ const k=nw/vb.w;vb={x:p.x-(p.x-vb.x)*k,y:p.y-(p.y-vb.y)*k,w:nw,h:vb.h*k};applyVB();},{passive:false});
+let dragging=null;
+stage.addEventListener("pointerdown",e=>{dragging={x:e.clientX,y:e.clientY,vb:{...vb}};stage.classList.add("drag");stage.setPointerCapture(e.pointerId)});
+stage.addEventListener("pointermove",e=>{
+ if(dragging){const r=stage.getBoundingClientRect();const sc=Math.max(dragging.vb.w/r.width,dragging.vb.h/r.height);
+  vb.x=dragging.vb.x-(e.clientX-dragging.x)*sc;vb.y=dragging.vb.y-(e.clientY-dragging.y)*sc;applyVB();}
+ tipMove(e);});
+stage.addEventListener("pointerup",e=>{
+ const moved=dragging&&(Math.abs(e.clientX-dragging.x)+Math.abs(e.clientY-dragging.y)>5);
+ dragging=null;stage.classList.remove("drag");
+ if(!moved){const t=e.target.closest("[data-id]");if(t)openPanel(t.getAttribute("data-id"));}});
+function flyTo(t,ms=900){const from={...vb},t0=performance.now();
+ const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+ function step(now){const k=Math.min(1,(now-t0)/ms),e=ease(k);
+  vb={x:from.x+(t.x-from.x)*e,y:from.y+(t.y-from.y)*e,w:from.w+(t.w-from.w)*e,h:from.h+(t.h-from.h)*e};
+  applyVB();if(k<1)requestAnimationFrame(step);}
+ requestAnimationFrame(step);}
+function flyToId(id){const g=svg.querySelector(`[data-id="${id}"]`);if(!g)return;
+ const b=g.getBBox();const pad=Math.max(b.width,b.height)*0.9+120;
+ const w=b.width+pad;
+ flyTo({x:b.x+b.width/2-w/2,y:b.y+b.height/2-(w*0.62)/2,w,h:w*0.62});}
+document.getElementById("btnReset").onclick=()=>flyTo(FULL);
+
+/* ───────────────────────── tooltip ───────────────────────── */
+const tip=document.getElementById("tip");
+function tipMove(e){const t=e.target.closest&&e.target.closest("[data-id]");
+ if(t&&!dragging){const d=NODES[t.getAttribute("data-id")];
+  if(d){tip.innerHTML=`<div class="s">${GROUPS[d.g]||d.g} · ${d.s}</div><b>${d.n}</b>`;
+   tip.style.display="block";tip.style.left=(e.clientX+14)+"px";tip.style.top=(e.clientY+14)+"px";return;}}
+ tip.style.display="none";}
+
+/* ───────────────────────── detail panel ───────────────────────── */
+const panel=document.getElementById("panel");
+function openPanel(id){const d=NODES[id];if(!d)return;
+ document.getElementById("pTitle").textContent=d.n;
+ document.getElementById("pChips").innerHTML=
+  `<span class="chip st-${d.s}">${d.s}</span><span class="chip">${GROUPS[d.g]||d.g}</span>`;
+ document.getElementById("pBlurb").textContent=d.b;
+ const kv=d.kv||{};document.getElementById("pKv").innerHTML=
+  Object.keys(kv).map(k=>`<div><b>${k}:</b> <code>${kv[k]}</code></div>`).join("");
+ const kids=(d.kids||[]).filter(k=>NODES[k]);
+ document.getElementById("pKids").innerHTML=kids.length?
+  `<div class="kv"><b>inside:</b></div>`+kids.map(k=>`<a href="#" data-goto="${k}">→ ${NODES[k].n} <span class="st-${NODES[k].s}" style="font-size:9.5px">${NODES[k].s}</span></a>`).join(""):"";
+ panel.classList.add("open");}
+panel.addEventListener("click",e=>{const a=e.target.closest("[data-goto]");
+ if(a){e.preventDefault();const id=a.getAttribute("data-goto");
+  const d=NODES[id];const hero=svg.querySelector(`[data-id="${id}"]`)?id:(d.fly||id);
+  flyToId(hero);openPanel(id);}});
+document.getElementById("pclose").onclick=()=>panel.classList.remove("open");
+
+/* ───────────────────────── index drawer ───────────────────────── */
+const drawer=document.getElementById("drawer"),dlist=document.getElementById("dlist");
+document.getElementById("btnIndex").onclick=()=>drawer.classList.toggle("open");
+document.getElementById("dcount").textContent=Object.keys(NODES).length+" nodes";
+function renderIndex(q){q=(q||"").toLowerCase();dlist.innerHTML="";
+ const order=["sky","funnel","struvo","afp","t25","ftree","indie","breeze","finance","endgame","os","fleet","arms","ext"];
+ for(const g of order){const items=Object.entries(NODES).filter(([id,d])=>d.g===g&&(d.n.toLowerCase().includes(q)||d.b.toLowerCase().includes(q)));
+  if(!items.length)continue;
+  const h=document.createElement("div");h.className="grp";h.textContent=GROUPS[g];dlist.appendChild(h);
+  for(const [id,d] of items){const it=document.createElement("div");it.className="it";
+   it.innerHTML=`<span>${d.n}</span><span class="st st-${d.s}">${d.s}</span>`;
+   it.onclick=()=>{const hero=svg.querySelector(`[data-id="${id}"]`)?id:(d.fly||id);
+    flyToId(hero);openPanel(id);drawer.classList.remove("open");};
+   dlist.appendChild(it);}}}
+document.getElementById("dsearch").oninput=e=>renderIndex(e.target.value);
+renderIndex("");
+
+/* ───────────────────────── live-only toggle ───────────────────────── */
+const btnLive=document.getElementById("btnLive");
+btnLive.onclick=()=>{document.body.classList.toggle("liveonly");btnLive.classList.toggle("on");};
+
+/* ───────────────────────── the tour ───────────────────────── */
+const TOUR=[
+ {v:{x:430,y:10,w:1260,h:709},t:"The why",b:"Everything on this canvas exists for one sentence: comprehend the universe by building it — and hand the leverage down. Not revenue for its own sake. The machine buys back time and hands down leverage."},
+ {v:{x:0,y:250,w:700,h:394},t:"Strangers arrive in the dark",b:"The ICP is psychographic, not demographic: expression-starved builders who want ideas to become real. They walk in from the left — YouTube, events, partner rooms — and fall through the funnel's etched stages: stranger → advocate. This side of the machine is instrumented on ATTENTION; its dollars arrive downstream."},
+ {v:{x:400,y:280,w:520,h:293},t:"The radar — validation for free",b:"A dish on Struvo's roof sweeps Skool daily at 8am, finds people the studio can genuinely help, drafts a plain-voice reply, and pings the operator. Dry-run — posts go out by hand, and the chute feeds the funnel. Every ask lands in the demand-log, which decides what GATE-1 artifacts get built."},
+ {v:{x:400,y:430,w:640,h:360},t:"Struvo — the primary engine",b:"Voice goes in the horn; a branded field report slides out the other side. Two failover chains (STT and LLM) keep it alive when providers fail. The grey pieces tell the truth: the voice agent is built but dark; Stripe billing is still blueprint — the honest #1 gap between product and business."},
+ {v:{x:700,y:400,w:1100,h:619},t:"The other arms",b:"AFP fires cold email into the world and rings the Telegram bell on hot replies. TwentyFive is the conveyor every lead lands on. FutureTree grows scenario branches. The indie press stamps apps from one Swift engine. Bree'ze presses juice from a photographed ledger. Different machines, same floor, same two pipes out."},
+ {v:{x:380,y:200,w:1420,h:800},t:"The flywheel",b:"Every machine exhales attention — build-in-public content, community contribution, client stories. It arcs back into the funnel and compounds. Attract → convert → deliver → compound. This loop is why the machine gets cheaper to run every month."},
+ {v:{x:20,y:880,w:1560,h:500},t:"The riverbed — the Intelligent OS",b:"Below the floor, locked infrastructure: 18 agent cores lit, 17 asleep until a keyword wakes them. Clock-gears (49 launchd + 23 cron) drive the camshafts. Memory roots feed the Qdrant crystal — files are truth, vectors are derived. The airlock is the only door from the open web: untrusted content is data, never instructions."},
+ {v:{x:1680,y:540,w:560,h:420},t:"The valves and the gate",b:"Dollar flow passes the cap-table valve and the sweep manifold — deterministic code does the math; agents never invent money. Then it hits the dam: $10K → $30K MRR marks. Gauge on this map is illustrative. No hard assets until the gate opens."},
+ {v:{x:2000,y:440,w:420,h:480},t:"The endgame in the dawn",b:"On the far side of the gate: land first, solar on an owned roof, compute and robots rented — never owned. The family is already real; the homestead is drawn in blueprint because it is designed, not bought. The channel from the dam lights up the day the gate opens."},
+ {v:FULL,t:"The machine, whole",b:"Night on the left, dawn on the right. Attention loops, dollars flow, the riverbed hums underneath, and the operator decides and creates. It is designed to run while the operator sleeps — and every public part of it is on this canvas. Click anything; the index holds all "+Object.keys(NODES).length+" nodes."}
+];
+let ti=-1;const tc=document.getElementById("tourcard");
+function tourShow(i){ti=i;const s=TOUR[i];flyTo(s.v,1100);
+ document.getElementById("tTitle").textContent=s.t;
+ document.getElementById("tBody").textContent=s.b;
+ document.getElementById("tStep").textContent=(i+1)+" / "+TOUR.length;
+ tc.style.display="block";}
+function tourEnd(){ti=-1;tc.style.display="none";flyTo(FULL);}
+document.getElementById("btnTour").onclick=()=>tourShow(0);
+document.getElementById("tNext").onclick=()=>ti<TOUR.length-1?tourShow(ti+1):tourEnd();
+document.getElementById("tPrev").onclick=()=>ti>0?tourShow(ti-1):tourEnd();
+document.addEventListener("keydown",e=>{
+ if(e.key==="Escape"){tourEnd();panel.classList.remove("open");drawer.classList.remove("open");}
+ else if(ti>=0&&e.key==="ArrowRight")tourShow(Math.min(ti+1,TOUR.length-1));
+ else if(ti>=0&&e.key==="ArrowLeft")tourShow(Math.max(ti-1,0));
+ else if(e.key==="0")flyTo(FULL);});
+applyVB();
+
+/* overlay illustrative statuses from status.json when served over HTTP */
+(function(){
+  fetch("status.json",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(snap){
+    if(!snap||!snap.nodes)return;
+    Object.keys(snap.nodes).forEach(function(id){
+      var s=snap.nodes[id];
+      if(NODES[id]) NODES[id].s=s;
+      var g=svg.querySelector('[data-id="'+id+'"]');
+      if(g) g.setAttribute("data-status",s);
+    });
+    var box=document.getElementById("dsearch");
+    renderIndex(box?box.value:"");
+  }).catch(function(){ /* file:// keeps baked statuses */ });
+})();
+
+</script>
+
+</html>
