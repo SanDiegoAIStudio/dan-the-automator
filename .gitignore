@@ -7,3 +7,4 @@ data/heartbeats/*.json
 !data/heartbeats/.gitkeep
 data/kill-switch.log
 data/kill-switch-corruption.log
+tests/private-deny.local.json
