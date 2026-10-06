@@ -52,9 +52,20 @@ function assertNoClassLeaks(haystack: string, label: string): void {
 type TrackedText = { path: string; text: string };
 type NeedleHit = { path: string; line: number; needleIndex: number };
 
+function gitEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env)) {
+    if (typeof value === "string" && !name.startsWith("GIT_")) {
+      env[name] = value;
+    }
+  }
+  return env;
+}
+
 function listTrackedTextFiles(repoRoot: string): string[] {
   const result = Bun.spawnSync(["git", "ls-files", "-z"], {
     cwd: repoRoot,
+    env: gitEnv(),
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -78,6 +89,7 @@ function isGitWorkTree(repoRoot: string): boolean {
   try {
     const result = Bun.spawnSync(["git", "rev-parse", "--is-inside-work-tree"], {
       cwd: repoRoot,
+      env: gitEnv(),
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -200,7 +212,7 @@ describe("Public cutaway", () => {
 
   it("lists tracked text files, tests included", () => {
     // source: rule, the deny scan covers every tracked text file and never the ignored deny file itself
-    if (!isGitWorkTree(REPO_ROOT)) { return; }
+    if (!existsSync(join(REPO_ROOT, ".git"))) { return; }
     const paths = listTrackedTextFiles(REPO_ROOT);
     expect(paths).toContain("tests/public-cutaway.test.ts");
     expect(paths).toContain("README.md");
@@ -214,6 +226,11 @@ describe("Public cutaway", () => {
     // source: review of the widened scan, a deleted but unstaged tracked file made readFileSync throw
     const dir = mkdtempSync(join(tmpdir(), "dan-scan-"));
     const emptyDir = mkdtempSync(join(tmpdir(), "dan-scan-"));
+    const previousGitDir = process.env.GIT_DIR;
+    const previousGitIndexFile = process.env.GIT_INDEX_FILE;
+    // stand-ins for the variables git sets inside a hook; they point into the temporary directory, so nothing outside it can be touched.
+    process.env.GIT_DIR = join(dir, "outer-git-dir-stand-in");
+    process.env.GIT_INDEX_FILE = join(dir, "outer-index-stand-in");
     try {
       const runGit = (...args: string[]): void => {
         const result = Bun.spawnSync([
@@ -225,6 +242,7 @@ describe("Public cutaway", () => {
           ...args,
         ], {
           cwd: dir,
+          env: gitEnv(),
           stdout: "pipe",
           stderr: "pipe",
         });
@@ -241,6 +259,16 @@ describe("Public cutaway", () => {
       expect(isGitWorkTree(dir)).toBe(true);
       expect(isGitWorkTree(emptyDir)).toBe(false);
     } finally {
+      if (previousGitDir === undefined) {
+        delete process.env.GIT_DIR;
+      } else {
+        process.env.GIT_DIR = previousGitDir;
+      }
+      if (previousGitIndexFile === undefined) {
+        delete process.env.GIT_INDEX_FILE;
+      } else {
+        process.env.GIT_INDEX_FILE = previousGitIndexFile;
+      }
       rmSync(dir, { recursive: true, force: true });
       rmSync(emptyDir, { recursive: true, force: true });
     }
