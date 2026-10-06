@@ -61,7 +61,7 @@ No Anthropic / GitHub keys on the default path. Do not add them “for later” 
 - Zod for every external payload
 - Do not weaken HMAC or the kill-switch fail-closed contract
 - Do not claim production autofix, fake MRR, or live telemetry
-- Do not dump private business-ops corpus or home paths into `public/`
+- Keep the corpus of a private operations repo and home paths out of `public/`
 - Do not fire live Slack / PR paths unless explicitly asked
 - Console.log is intentional MVP logging
 - Autofix is a lane. The OS is the product.

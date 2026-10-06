@@ -47,7 +47,7 @@ export const PROPERTIES: readonly PropertyCard[] = [
 export const PROPERTY_PRECEDENCE = SYSTEM_PROPERTY_PRECEDENCE;
 
 export const LAYERS = [
-  { id: 0, name: "Substrate", job: "Machines, mesh, failover. The riverbed has to stay up." },
+  { id: 0, name: "Substrate", job: "Machines, network, failover. The riverbed has to stay up." },
   { id: 1, name: "Compute serving", job: "Local first → paid fallback → frontier → hard-fail. No silent empties." },
   { id: 2, name: "Memory", job: "Append-only truth + derived indexes. Files are truth; vectors are derived." },
   { id: 3, name: "Knowledge ingestion", job: "Signals in: errors, meetings, telemetry, operator notes." },

@@ -39,7 +39,7 @@ report (optional Slack) — no silent production writes
 | 1 | Compute serving | Local diagnose only. No silent model calls. |
 | 2 | Memory | Out of scope here. The cutaway shows the idea. |
 | 3 | Knowledge ingestion | `/signals`, Sentry adapter, CLI ingest |
-| 4 | Agent fleet | Named roster on `GET /os` — not a runtime of 35 processes |
+| 4 | Agent fleet | Named roster on `GET /os`: a list of 34 processes that runs none of them |
 | 5 | Quality gates | Human gate on every proposal |
 | 6 | Observability | `/health`, heartbeats, job list |
 | 7 | Revenue protection | `data/kill-switch.json` + CLI `ks` |
