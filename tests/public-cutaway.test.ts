@@ -1,4 +1,5 @@
 import { describe, it, expect } from "bun:test";
+import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +13,37 @@ const LOCAL_DENY_PATH = join(import.meta.dir, "private-deny.local.json");
 const LocalDenySchema = z.object({
   needles: z.array(z.string().min(1)),
 });
+
+// SHA-256 of lowercase phrases that studio pages never show. The phrases stay out of this public repository; the list's owner keeps them with the brand rules.
+const BRAND_BOUNDARY_HASHES: ReadonlyArray<string> = [
+  "cf979e9ac9cbbc243c96acc4f0343f4fe1c1716c367b07cb6631d68c063d4cc9",
+  "fd9d3da38d0c95ca7cbc86e993e5ce034c2d37539f36e21c26e14687ba995b7a",
+  "44f27f6265981222effd371dbf87f8b26a0739c88c73c85cdc25830118e9da9b",
+  "97551b394c11751124d9f504850f9fce559cc1381badd05d931884bd69f0f688",
+  "031555fb118801ccd63413add6db8f15970e784d4b000d84f8116e4d9d77ee48",
+  "cf9ac08f26fdfa579508c8406f2c6d9b2900283f920ea55b416a94ea7ac6c02e",
+  "b9fcd745ce2ce4e0042668ed4bb848936e60ee85ac955ffa15d386c713facbba",
+  "e18baead8feea724f28b897a8403d47dbe33abc6da76d373ed1daea8313aa503",
+  "32138ffa98feaa0f4138fd3cdbf61adc9674029996f20002c2f509fd7f16df38",
+  "a214b451b46d03781bc2f27d946a08490d58447ccad6cd3ef496a86795174779",
+  "a8b8012dbc691c6b81e7cad1897754bfe234e90e0186fd7873f950660f4a2148",
+];
+
+function findBrandHits(text: string, hashes: ReadonlyArray<string>): number[] {
+  const tokens = text.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+  const targets = new Set(hashes);
+  const hits = new Set<string>();
+  for (let start = 0; start < tokens.length; start++) {
+    for (let size = 1; size <= 3 && start + size <= tokens.length; size++) {
+      const phrase = tokens.slice(start, start + size).join(" ");
+      const digest = createHash("sha256").update(phrase).digest("hex");
+      if (targets.has(digest)) {
+        hits.add(digest);
+      }
+    }
+  }
+  return hashes.flatMap((hash, index) => hits.has(hash) ? [index] : []);
+}
 
 /**
  * Class-of-leak guards only. Concrete hosts, handles, client names, and
@@ -120,6 +152,29 @@ function formatNeedleHits(hits: ReadonlyArray<NeedleHit>): string {
 describe("Public cutaway", () => {
   const html = readFileSync(join(PUBLIC_DIR, "index.html"), "utf8");
   const status = readFileSync(join(PUBLIC_DIR, "status.json"), "utf8");
+
+  it("keeps the brand boundary on the cutaway, the status file and the README", () => {
+    // source: brand rules 6 and 7, studio pages never name the outreach company, its domain or its sending lane; the cutaway did until 2026-10-06
+    for (const path of ["public/index.html", "public/status.json", "README.md"]) {
+      const hits = findBrandHits(readFileSync(join(REPO_ROOT, path), "utf8"), BRAND_BOUNDARY_HASHES);
+      expect(hits, `${path}: hash indexes ${JSON.stringify(hits)}`).toEqual([]);
+    }
+  });
+
+  it("brand scanner matches hashed one-, two- and three-token phrases without echoing them", () => {
+    // source: rule, the brand scan matches hashed phrases and never prints them
+    const hashes = ["zzalpha", "zz beta", "zz gamma delta"].map((phrase) =>
+      createHash("sha256").update(phrase).digest("hex"),
+    );
+    expect(findBrandHits("Hello ZZalpha.", hashes)).toEqual([0]);
+    expect(findBrandHits("x zz-beta y", hashes)).toEqual([1]);
+    expect(findBrandHits("one zz gamma delta two", hashes)).toEqual([2]);
+    expect(findBrandHits("zz", hashes)).toEqual([]);
+    expect(findBrandHits("zzbeta", hashes)).toEqual([]);
+    const hits = findBrandHits("zz gamma delta zzalpha zz-beta zzalpha", hashes);
+    expect(hits).toEqual([0, 1, 2]);
+    expect(hits.every((hit) => typeof hit === "number")).toBe(true);
+  });
 
   it("keeps the cockpit: tour, index, pan/zoom, flywheel, disclaimer", () => {
     expect(html).toContain("btnTour");
