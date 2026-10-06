@@ -14,7 +14,10 @@ const LocalDenySchema = z.object({
   needles: z.array(z.string().min(1)),
 });
 
-// SHA-256 of lowercase phrases that studio pages never show. The phrases stay out of this public repository; the list's owner keeps them with the brand rules.
+// SHA-256 of lowercase brand phrases that studio pages never show. These are brand terms and hold
+// nothing private, so a guess confirmed by hashing reveals nothing. The hashes exist only so a
+// Studio repository never prints the phrases; this list is not a privacy control. Private words
+// belong in the gitignored local deny file (LOCAL_DENY_PATH).
 const BRAND_BOUNDARY_HASHES: ReadonlyArray<string> = [
   "cf979e9ac9cbbc243c96acc4f0343f4fe1c1716c367b07cb6631d68c063d4cc9",
   "fd9d3da38d0c95ca7cbc86e993e5ce034c2d37539f36e21c26e14687ba995b7a",
