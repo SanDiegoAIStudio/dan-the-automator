@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -64,7 +65,26 @@ function listTrackedTextFiles(repoRoot: string): string[] {
   if (paths.length === 0) {
     throw new Error("could not list tracked files: git returned no paths");
   }
-  return paths.filter((path) => !readFileSync(join(repoRoot, path)).subarray(0, 8000).includes(0));
+  return paths.filter((path) => {
+    try {
+      return lstatSync(join(repoRoot, path)).isFile();
+    } catch {
+      return false;
+    }
+  }).filter((path) => !readFileSync(join(repoRoot, path)).subarray(0, 8000).includes(0));
+}
+
+function isGitWorkTree(repoRoot: string): boolean {
+  try {
+    const result = Bun.spawnSync(["git", "rev-parse", "--is-inside-work-tree"], {
+      cwd: repoRoot,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    return result.exitCode === 0 && result.stdout.toString("utf8").trim() === "true";
+  } catch {
+    return false;
+  }
 }
 
 function findNeedleHits(files: ReadonlyArray<TrackedText>, needles: ReadonlyArray<string>): NeedleHit[] {
@@ -180,6 +200,7 @@ describe("Public cutaway", () => {
 
   it("lists tracked text files, tests included", () => {
     // source: rule, the deny scan covers every tracked text file and never the ignored deny file itself
+    if (!isGitWorkTree(REPO_ROOT)) { return; }
     const paths = listTrackedTextFiles(REPO_ROOT);
     expect(paths).toContain("tests/public-cutaway.test.ts");
     expect(paths).toContain("README.md");
@@ -187,6 +208,42 @@ describe("Public cutaway", () => {
     expect(paths.some((path) => path.startsWith("node_modules/"))).toBe(false);
     expect(paths.some((path) => path.startsWith(".git/"))).toBe(false);
     expect(paths).not.toContain("tests/private-deny.local.json");
+  });
+
+  it("skips tracked paths that are not regular files", () => {
+    // source: review of the widened scan, a deleted but unstaged tracked file made readFileSync throw
+    const dir = mkdtempSync(join(tmpdir(), "dan-scan-"));
+    const emptyDir = mkdtempSync(join(tmpdir(), "dan-scan-"));
+    try {
+      const runGit = (...args: string[]): void => {
+        const result = Bun.spawnSync([
+          "git",
+          "-c", "core.hooksPath=/dev/null",
+          "-c", "commit.gpgsign=false",
+          "-c", "user.name=Test",
+          "-c", "user.email=test@example.invalid",
+          ...args,
+        ], {
+          cwd: dir,
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        expect(result.exitCode, `git ${args.join(" ")} failed: ${result.stderr.toString("utf8")}`).toBe(0);
+      };
+      runGit("init");
+      writeFileSync(join(dir, "a.txt"), "a\n");
+      writeFileSync(join(dir, "b.txt"), "b\n");
+      runGit("add", "a.txt", "b.txt");
+      runGit("commit", "-m", "Track scan fixtures");
+      rmSync(join(dir, "b.txt"));
+
+      expect(listTrackedTextFiles(dir)).toEqual(["a.txt"]);
+      expect(isGitWorkTree(dir)).toBe(true);
+      expect(isGitWorkTree(emptyDir)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
   });
 
   it("marks statuses as illustrative", () => {
