@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 
+const REPO_ROOT = join(import.meta.dir, "..");
 const PUBLIC_DIR = join(import.meta.dir, "..", "public");
 /** Gitignored. Schema: `{ "needles": string[] }`. Missing file skips extra needles. */
 const LOCAL_DENY_PATH = join(import.meta.dir, "private-deny.local.json");
@@ -45,6 +46,43 @@ function assertNoClassLeaks(haystack: string, label: string): void {
     const match = haystack.match(pattern);
     expect(match, `${label} leaked ${name}${match?.[0] ? `: ${match[0]}` : ""}`).toBeNull();
   }
+}
+
+type TrackedText = { path: string; text: string };
+type NeedleHit = { path: string; line: number; needleIndex: number };
+
+function listTrackedTextFiles(repoRoot: string): string[] {
+  const result = Bun.spawnSync(["git", "ls-files", "-z"], {
+    cwd: repoRoot,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (result.exitCode !== 0) {
+    throw new Error("could not list tracked files: git exited non-zero");
+  }
+  const paths = result.stdout.toString("utf8").split("\0").filter((path) => path.length > 0);
+  if (paths.length === 0) {
+    throw new Error("could not list tracked files: git returned no paths");
+  }
+  return paths.filter((path) => !readFileSync(join(repoRoot, path)).subarray(0, 8000).includes(0));
+}
+
+function findNeedleHits(files: ReadonlyArray<TrackedText>, needles: ReadonlyArray<string>): NeedleHit[] {
+  const hits: NeedleHit[] = [];
+  for (const file of files) {
+    file.text.split("\n").forEach((line, lineIndex) => {
+      needles.forEach((needle, needleIndex) => {
+        if (line.includes(needle)) {
+          hits.push({ path: file.path, line: lineIndex + 1, needleIndex });
+        }
+      });
+    });
+  }
+  return hits;
+}
+
+function formatNeedleHits(hits: ReadonlyArray<NeedleHit>): string {
+  return hits.map(({ path, line, needleIndex }) => `${path}:${line} (needle #${needleIndex})`).join("\n");
 }
 
 describe("Public cutaway", () => {
@@ -97,15 +135,58 @@ describe("Public cutaway", () => {
     assertNoClassLeaks("$10K → $30K MRR", "illustrative gate range");
   });
 
-  it("does not leak operator-local deny needles when a local list is present", () => {
+  it("does not leak operator-local deny needles in any tracked text file when a local list is present", () => {
+    // source: 2026-10-06, a word from the local deny file sat on two lines of this test file while the test read only public/index.html and public/status.json
     const needles = loadLocalNeedles();
     if (needles.length === 0) {
       return;
     }
-    for (const needle of needles) {
-      expect(html.includes(needle), `public/index.html leaked local needle`).toBe(false);
-      expect(status.includes(needle), `public/status.json leaked local needle`).toBe(false);
-    }
+    const files: TrackedText[] = listTrackedTextFiles(REPO_ROOT).map((path) => ({
+      path,
+      text: readFileSync(join(REPO_ROOT, path), "utf8"),
+    }));
+    const hits = findNeedleHits(files, needles);
+    expect(hits.length, `tracked files leaked local needles:\n${formatNeedleHits(hits)}`).toBe(0);
+  });
+
+  it("finds a needle in any file, by path, line and index, without echoing it", () => {
+    // source: rule, the scan reports where a needle is and never what it is
+    const needle = "zz-synthetic-needle";
+    const files: TrackedText[] = [
+      { path: "src/example.ts", text: "export const example = true;" },
+      { path: "tests/example.test.ts", text: `first line\n${needle}\nlast line` },
+      { path: "docs/example.md", text: needle.toUpperCase() },
+    ];
+    const hits = findNeedleHits(files, [needle]);
+    expect(hits).toEqual([{ path: "tests/example.test.ts", line: 2, needleIndex: 0 }]);
+    expect(findNeedleHits(files.slice(0, 1), [needle])).toEqual([]);
+    expect(findNeedleHits(files.slice(1, 2), [needle.toUpperCase()])).toEqual([]);
+
+    const secondNeedle = "zz-synthetic-other";
+    const sharedLineHits = findNeedleHits(
+      [{ path: "src/example.ts", text: `${secondNeedle} ${needle} ${needle}` }],
+      [needle, secondNeedle],
+    );
+    expect(sharedLineHits).toEqual([
+      { path: "src/example.ts", line: 1, needleIndex: 0 },
+      { path: "src/example.ts", line: 1, needleIndex: 1 },
+    ]);
+
+    const formatted = formatNeedleHits([...hits, ...sharedLineHits]);
+    expect(formatted).toBe("tests/example.test.ts:2 (needle #0)\nsrc/example.ts:1 (needle #0)\nsrc/example.ts:1 (needle #1)");
+    expect(formatted.includes(needle)).toBe(false);
+    expect(formatted.includes(secondNeedle)).toBe(false);
+  });
+
+  it("lists tracked text files, tests included", () => {
+    // source: rule, the deny scan covers every tracked text file and never the ignored deny file itself
+    const paths = listTrackedTextFiles(REPO_ROOT);
+    expect(paths).toContain("tests/public-cutaway.test.ts");
+    expect(paths).toContain("README.md");
+    expect(paths).toContain("public/index.html");
+    expect(paths.some((path) => path.startsWith("node_modules/"))).toBe(false);
+    expect(paths.some((path) => path.startsWith(".git/"))).toBe(false);
+    expect(paths).not.toContain("tests/private-deny.local.json");
   });
 
   it("marks statuses as illustrative", () => {
