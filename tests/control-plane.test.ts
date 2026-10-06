@@ -168,7 +168,7 @@ describe("Pipeline + human gate", () => {
 
   it("ingests → proposes → approve → reported", () => {
     const job = ingestSignal(
-      { source: "operator", kind: "ops", title: "restart lux", ref: "ops-1" },
+      { source: "operator", kind: "ops", title: "restart a local machine", ref: "ops-1" },
       { notify: false }
     );
     expect(job.status).toBe(JobStatus.PROPOSED);

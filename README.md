@@ -102,7 +102,7 @@ Queue is **in-memory**. Restart and the jobs are gone. That is honest for a Phas
 - No auto-opened GitHub PRs on the default path
 - No Redis / Postgres / Bull (the old README named them; the code never had them)
 - No live MRR gauge, customer counts, or “minutes to fix”
-- The cutaway is **not** wired to private business-ops telemetry
+- The cutaway is **not** wired to telemetry from a private operations repo
 
 Autofix is one **lane**: an error signal with a file hint becomes an `autofix-candidate` proposal. A human still gates. Wiring a model + `git` write-back is roadmap, behind the same kill-switch.
 

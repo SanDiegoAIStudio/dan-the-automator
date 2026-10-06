@@ -15,12 +15,11 @@
     "struvo-voice-agent": "dark",
     "struvo-billing": "blueprint",
     "afp": "live",
-    "twentyfive": "live",
+    "crm": "live",
     "futuretree": "live",
     "indie": "live",
     "indie-vv": "dark",
     "indie-pp": "building",
-    "breeze": "live",
     "finance": "live",
     "gate": "live",
     "endgame": "blueprint",
@@ -30,6 +29,6 @@
     "schedulers": "live",
     "memoryspine": "live",
     "quarantine": "live",
-    "lux": "live"
+    "engine-room": "live"
   }
 }
