@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { SERVICE_NAME, VERSION } from "./config";
 import { listHeartbeats, writeHeartbeat } from "./heartbeats";
 import { readKillSwitch, setKillSwitch } from "./kill-switch";
@@ -16,12 +17,13 @@ function print(data: unknown): void {
 }
 
 function usage(): string {
-  return `dan — ${SERVICE_NAME} ${VERSION}
-San Diego AI Studio / Luc Face. Proposes. A human gates.
+  return `${SERVICE_NAME} ${VERSION}
+San Diego AI Studio / Luc Face. It proposes actions, and a person approves or rejects each one.
 
   dan health
   dan os
   dan ks status
+  dan ks gate
   dan ks on <reason>
   dan ks off
   dan heartbeat <name> [--cadence 3600]
@@ -41,6 +43,16 @@ function flag(argv: string[], name: string): string | undefined {
 }
 
 export async function runCli(argv: string[]): Promise<number> {
+  try {
+    return await dispatch(argv);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Error: ${message}`);
+    return 1;
+  }
+}
+
+async function dispatch(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
 
   if (!cmd || cmd === "help" || cmd === "--help") {
@@ -74,8 +86,20 @@ export async function runCli(argv: string[]): Promise<number> {
       print({ ...ks.state, blocksWork: ks.blocksWork, mode: ks.mode });
       return 0;
     }
+    if (sub === "gate") {
+      const ks = readKillSwitch();
+      if (!ks.blocksWork) return 0;
+      console.error(
+        `Kill-switch is armed (${ks.mode}): ${ks.state.reason}. A person clears it with: dan ks off`
+      );
+      return 2;
+    }
     if (sub === "on") {
       const reason = rest.slice(1).join(" ").trim();
+      if (reason.length === 0) {
+        print("ks on <reason>: a reason is required");
+        return 1;
+      }
       const ks = setKillSwitch({ active: true, reason, setBy: "human" });
       print({ ...ks.state, blocksWork: ks.blocksWork, mode: ks.mode });
       return 0;
@@ -85,7 +109,7 @@ export async function runCli(argv: string[]): Promise<number> {
       print({ ...ks.state, blocksWork: ks.blocksWork, mode: ks.mode });
       return 0;
     }
-    print("ks on <reason> | ks off | ks status");
+    print("ks status | ks gate | ks on <reason> | ks off");
     return 1;
   }
 

@@ -85,7 +85,7 @@ Cute features that require the operator to remember to invoke them are **not in 
 
 - Living cutaway at `/` — pan/zoom, tour, index, illustrative statuses
 - HTTP control plane on Bun + Hono (`GET /health`, `GET /os`)
-- **Kill-switch** with THE-SYSTEM contract: missing file → fail-open; corrupt file → fail-closed; `dan ks on <reason>`
+- **Kill-switch** with THE-SYSTEM contract: a missing file fails open, and a corrupt or unreadable file fails closed; `dan ks on <reason>`
 - **Heartbeat registry** with stale detection (2× cadence)
 - **Signal intake → diagnose → propose → human gate → report**
 - Sentry HMAC webhook as **one intake adapter**, not the product
@@ -129,6 +129,9 @@ bun dev          # http://localhost:3456  ← the cutaway
 # kill-switch
 bun run src/cli.ts ks on "revenue week"
 bun run src/cli.ts ks off
+# It exits 2 while the switch is armed, for use in hooks.
+bun run src/cli.ts ks gate
+# Any other nonzero exit means the gate could not run, and a hook should treat that as armed too.
 
 # signal → proposal → gate
 bun run src/cli.ts ingest --title "STT failover flapped" --kind error --file src/stt.ts

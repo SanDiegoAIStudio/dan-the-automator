@@ -31,6 +31,53 @@ function appendLog(filePath: string, line: string): void {
   writeFileSync(filePath, `${line}\n`, { flag: "a" });
 }
 
+function errorCode(err: unknown): string | undefined {
+  if (typeof err !== "object" || err === null || !("code" in err)) return undefined;
+  const code = err.code;
+  return typeof code === "string" ? code : undefined;
+}
+
+function textAfterTimestamp(line: string): string {
+  const space = line.indexOf(" ");
+  if (space === -1) return "";
+  return line.slice(space + 1);
+}
+
+function lastCorruptionLine(): string | undefined {
+  try {
+    const raw = readFileSync(corruptionLogPath(), "utf8");
+    const lines = raw.split("\n").filter((line) => line.length > 0);
+    return lines[lines.length - 1];
+  } catch {
+    return undefined;
+  }
+}
+
+function appendCorruption(failureText: string): void {
+  try {
+    const last = lastCorruptionLine();
+    if (last !== undefined && textAfterTimestamp(last) === failureText) return;
+    appendLog(corruptionLogPath(), `${new Date().toISOString()} ${failureText}`);
+  } catch {
+    // An unwritable data folder still returns the fail-closed result.
+  }
+}
+
+function failClosed(path: string, reason: "corruption" | "unreadable"): KillSwitchRead {
+  return {
+    state: {
+      ...DEFAULT_KILL_SWITCH,
+      active: true,
+      reason,
+      since: new Date().toISOString(),
+      set_by: "agent",
+    },
+    blocksWork: true,
+    mode: "fail-closed",
+    path,
+  };
+}
+
 function atomicWrite(filePath: string, contents: string): void {
   ensureDir(filePath);
   const tmp = `${filePath}.${process.pid}.tmp`;
@@ -40,8 +87,8 @@ function atomicWrite(filePath: string, contents: string): void {
 
 /**
  * THE-SYSTEM Layer 7 contract:
- * - file missing → fail-open (first boot)
- * - parse failure → fail-closed (treat as active)
+ * - file missing (ENOENT) → fail-open (first boot)
+ * - unreadable or parse failure → fail-closed (treat as active)
  * - active=true → every system-work path must stop
  */
 export function readKillSwitch(): KillSwitchRead {
@@ -49,13 +96,18 @@ export function readKillSwitch(): KillSwitchRead {
   let raw: string;
   try {
     raw = readFileSync(path, "utf8");
-  } catch {
-    return {
-      state: DEFAULT_KILL_SWITCH,
-      blocksWork: false,
-      mode: "fail-open",
-      path,
-    };
+  } catch (err: unknown) {
+    if (errorCode(err) === "ENOENT") {
+      return {
+        state: DEFAULT_KILL_SWITCH,
+        blocksWork: false,
+        mode: "fail-open",
+        path,
+      };
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    appendCorruption(`unreadable ${message}`);
+    return failClosed(path, "unreadable");
   }
 
   try {
@@ -70,19 +122,8 @@ export function readKillSwitch(): KillSwitchRead {
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    appendLog(corruptionLogPath(), `${new Date().toISOString()} parse-failure ${message}`);
-    return {
-      state: {
-        ...DEFAULT_KILL_SWITCH,
-        active: true,
-        reason: "corruption",
-        since: new Date().toISOString(),
-        set_by: "agent",
-      },
-      blocksWork: true,
-      mode: "fail-closed",
-      path,
-    };
+    appendCorruption(`parse-failure ${message}`);
+    return failClosed(path, "corruption");
   }
 }
 
