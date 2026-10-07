@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCli } from "../src/cli";
+import { gateExitCode, runCli } from "../src/cli";
+import { SERVICE_NAME, VERSION } from "../src/config";
 import { readKillSwitch, setKillSwitch } from "../src/kill-switch";
 
 const runningAsRoot = typeof process.getuid === "function" && process.getuid() === 0;
@@ -23,6 +34,15 @@ describe("kill-switch fail-closed contract", () => {
     } catch {
       // the temp dir is already writable, or this process cannot chmod it
     }
+    const file = join(dir, "kill-switch.json");
+    if (existsSync(file)) {
+      try {
+        chmodSync(file, 0o644);
+      } catch {
+        // a mode 000 switch, or this process cannot chmod it
+      }
+    }
+    rmSync(dir, { recursive: true, force: true });
     if (previousDataDir === undefined) delete process.env["DAN_DATA_DIR"];
     else process.env["DAN_DATA_DIR"] = previousDataDir;
   });
@@ -85,6 +105,23 @@ describe("kill-switch fail-closed contract", () => {
     expect(lines).toHaveLength(1);
   });
 
+  it("the same corruption on a rewritten file is logged again", () => {
+    // source: the dedupe hid a recurrence of the same corruption after the file was fixed
+    const file = join(dir, "kill-switch.json");
+    const corrupt = "{not-json";
+    writeFileSync(file, corrupt);
+    readKillSwitch();
+    readKillSwitch();
+    writeFileSync(file, corrupt);
+    const later = new Date(statSync(file).mtimeMs + 2000);
+    utimesSync(file, later, later);
+    readKillSwitch();
+    readKillSwitch();
+    const raw = readFileSync(join(dir, "kill-switch-corruption.log"), "utf8");
+    const lines = raw.split("\n").filter((line) => line.length > 0);
+    expect(lines).toHaveLength(2);
+  });
+
   it("ks gate returns 0 and prints nothing when the switch does not block work", async () => {
     // source: hooks need a quiet zero exit while the switch is clear or missing
     const missing = await capture(() => runCli(["ks", "gate"]));
@@ -118,6 +155,24 @@ describe("kill-switch fail-closed contract", () => {
     expect(captured.stderr).toBe(
       "Kill-switch is armed (fail-closed): corruption. A person clears it with: dan ks off"
     );
+  });
+
+  it("ks gate returns 2 when reading the switch throws", () => {
+    // source: a thrown read inside ks gate became exit 1, which a hook treats as not blocking
+    let threw = false;
+    let code = 0;
+    const captured = captureSync(() => {
+      try {
+        code = gateExitCode(() => {
+          throw new Error("disk gone");
+        });
+      } catch {
+        threw = true;
+      }
+    });
+    expect(threw).toBe(false);
+    expect(code).toBe(2);
+    expect(captured.stderr).toBe("Kill-switch could not be read (disk gone). Treating it as armed.");
   });
 
   it("ks on with no reason returns 1 and does not throw", async () => {
@@ -156,7 +211,7 @@ describe("kill-switch fail-closed contract", () => {
     expect(source).not.toContain("\u2013");
     const captured = await capture(() => runCli(["help"]));
     expect(captured.code).toBe(0);
-    expect(captured.stdout.split("\n")[0]).toBe("dan-the-automator 0.2.0");
+    expect(captured.stdout.split("\n")[0]).toBe(`${SERVICE_NAME} ${VERSION}`);
     expect(captured.stdout).not.toContain("dan dan-the-automator");
     expect(captured.stdout).toContain(
       "San Diego AI Studio / Luc Face. It proposes actions, and a person approves or rejects each one."
@@ -219,6 +274,26 @@ describe("kill-switch fail-closed contract", () => {
     expect(ks.state.reason).toBe("corruption");
   });
 });
+
+function captureSync(run: () => void): { stdout: string; stderr: string } {
+  const out: string[] = [];
+  const err: string[] = [];
+  const log = console.log;
+  const error = console.error;
+  console.log = (...args: unknown[]) => {
+    out.push(args.map((part) => String(part)).join(" "));
+  };
+  console.error = (...args: unknown[]) => {
+    err.push(args.map((part) => String(part)).join(" "));
+  };
+  try {
+    run();
+    return { stdout: out.join("\n"), stderr: err.join("\n") };
+  } finally {
+    console.log = log;
+    console.error = error;
+  }
+}
 
 async function capture(run: () => Promise<number>): Promise<{ code: number; stdout: string; stderr: string }> {
   const out: string[] = [];

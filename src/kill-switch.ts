@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { dataDir } from "./config";
 import { DEFAULT_KILL_SWITCH, KillSwitchSchema, type KillSwitchState } from "./types";
@@ -53,11 +53,20 @@ function lastCorruptionLine(): string | undefined {
   }
 }
 
+function killSwitchMtime(): string {
+  try {
+    return String(Math.floor(statSync(killSwitchPath()).mtimeMs));
+  } catch {
+    return "unknown";
+  }
+}
+
 function appendCorruption(failureText: string): void {
   try {
+    const recorded = `${failureText} mtime=${killSwitchMtime()}`;
     const last = lastCorruptionLine();
-    if (last !== undefined && textAfterTimestamp(last) === failureText) return;
-    appendLog(corruptionLogPath(), `${new Date().toISOString()} ${failureText}`);
+    if (last !== undefined && textAfterTimestamp(last) === recorded) return;
+    appendLog(corruptionLogPath(), `${new Date().toISOString()} ${recorded}`);
   } catch {
     // An unwritable data folder still returns the fail-closed result.
   }

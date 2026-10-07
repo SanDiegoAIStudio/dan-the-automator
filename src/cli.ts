@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { SERVICE_NAME, VERSION } from "./config";
 import { listHeartbeats, writeHeartbeat } from "./heartbeats";
-import { readKillSwitch, setKillSwitch } from "./kill-switch";
+import { readKillSwitch, setKillSwitch, type KillSwitchRead } from "./kill-switch";
 import { decideJob, ingestSignal } from "./pipeline";
 import { actionQueue } from "./queue";
 import { serializeJob, type SignalKindType } from "./types";
@@ -40,6 +40,22 @@ function flag(argv: string[], name: string): string | undefined {
   const idx = argv.indexOf(name);
   if (idx === -1) return undefined;
   return argv[idx + 1];
+}
+
+export function gateExitCode(read: () => KillSwitchRead = readKillSwitch): number {
+  let ks: KillSwitchRead;
+  try {
+    ks = read();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Kill-switch could not be read (${message}). Treating it as armed.`);
+    return 2;
+  }
+  if (!ks.blocksWork) return 0;
+  console.error(
+    `Kill-switch is armed (${ks.mode}): ${ks.state.reason}. A person clears it with: dan ks off`
+  );
+  return 2;
 }
 
 export async function runCli(argv: string[]): Promise<number> {
@@ -87,12 +103,7 @@ async function dispatch(argv: string[]): Promise<number> {
       return 0;
     }
     if (sub === "gate") {
-      const ks = readKillSwitch();
-      if (!ks.blocksWork) return 0;
-      console.error(
-        `Kill-switch is armed (${ks.mode}): ${ks.state.reason}. A person clears it with: dan ks off`
-      );
-      return 2;
+      return gateExitCode();
     }
     if (sub === "on") {
       const reason = rest.slice(1).join(" ").trim();
