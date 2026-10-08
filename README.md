@@ -22,7 +22,7 @@ The cutaway is the showpiece: pan, zoom, guided tour, searchable node index, sta
 ⑤  STORE OF VALUE     land → energy on an owned roof → rented compute / robots
 ④  THE MOAT           relationship graph + community + accumulated fleet
 ③  CONVERSION         engine cash → an owner-independent business
-②  THE ARMS           SDAIS (the heart) · AFP (relationships / cash now) · shots (Struvo, …)
+②  THE ARMS           SDAIS (the heart) · client work (cash now) · shots (Struvo, …)
 ①  LEVERAGE           agent fleet / Intelligent OS  ← Dan lives here
 ⓪  THE WHY            comprehend the universe by building it — and hand the leverage down
 ```
@@ -40,8 +40,8 @@ SDAIS is the heart. Products are **shots on goal**, not main characters. Softwar
                         │
         ┌───────────────┼────────────────┐
         ▼               ▼                ▼
-     STRUVO            AFP           OTHER SHOTS
-   (construction)  (outreach)     (apps / intel / CRM)
+     STRUVO        CLIENT WORK       OTHER SHOTS
+   (construction) (paid builds)   (apps / intel / CRM)
         │               │                │
         └─────────── dollars ────────────┘
                         │
