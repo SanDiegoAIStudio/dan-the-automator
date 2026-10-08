@@ -41,7 +41,7 @@ export const SignalSchema = z.object({
   ref: z.string().optional(),
   file: z.string().optional(),
   line: z.number().int().positive().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type Signal = z.infer<typeof SignalSchema>;
@@ -157,7 +157,7 @@ export const ProposedActionSchema = z.object({
   requiresHumanGate: z.literal(true),
   blastRadius: z.enum(["low", "high"]),
   lane: z.enum(["intake", "autofix", "ops", "revenue"]),
-  details: z.record(z.string()),
+  details: z.record(z.string(), z.string()),
 });
 
 export type ProposedAction = z.infer<typeof ProposedActionSchema>;

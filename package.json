@@ -1,7 +1,7 @@
 {
   "name": "dan-the-automator",
   "version": "0.2.0",
-  "description": "Public Intelligent OS control plane for San Diego AI Studio — kill-switch, heartbeats, signal intake, human-gated actions.",
+  "description": "Public Intelligent OS control plane for San Diego AI Studio: kill-switch, heartbeats, signal intake, human-gated actions.",
   "type": "module",
   "license": "MIT",
   "bin": {
