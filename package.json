@@ -1,0 +1,25 @@
+{
+  "name": "dan-the-automator",
+  "version": "0.2.0",
+  "description": "Public Intelligent OS control plane for San Diego AI Studio: kill-switch, heartbeats, signal intake, human-gated actions.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "dan": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "cli": "bun run src/cli.ts",
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.7.4",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.4",
+    "typescript": "^5.7.3"
+  }
+}
