@@ -3,9 +3,9 @@ dist
 .env
 *.log
 .DS_Store
+data/*.json
+data/*.log
 data/heartbeats/*.json
 !data/heartbeats/.gitkeep
-data/kill-switch.log
-data/kill-switch-corruption.log
 data/dan-locks.sqlite*
 tests/private-deny.local.json

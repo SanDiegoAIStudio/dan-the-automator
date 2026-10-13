@@ -2,18 +2,18 @@
 
 Dan the Automator is a small Bun and Hono control plane that takes a signal, diagnoses it with local rules, and proposes an action a person must approve.
 
-Set `DAN_CONTROL_TOKEN` for anything beyond a laptop demo. `DAN_LOCAL_SHOWCASE=1` and `DAN_ALLOW_UNSIGNED_WEBHOOKS=1` are for local demos only. With the token unset, and the showcase flag not exactly `1`, control routes answer 503 and change nothing. A set token requires a Bearer token. A missing or wrong bearer is 401. `POST /webhook/trigger` uses that same rule. In showcase mode, a mutating route requires `Content-Type: application/json`. A request that sends an `Origin` header is rejected unless that origin is `http://localhost:<port>` or `http://127.0.0.1:<port>`. `DAN_ALLOW_UNSIGNED_WEBHOOKS=1` is refused at start when `DAN_HOST` is not a loopback address. On a loopback bind its warning is logged once at start.
+Set `DAN_CONTROL_TOKEN` for anything beyond a laptop demo. An empty `DAN_CONTROL_TOKEN` or `SENTRY_WEBHOOK_SECRET` counts as unset. `DAN_LOCAL_SHOWCASE=1` and `DAN_ALLOW_UNSIGNED_WEBHOOKS=1` are for local demos only. With the token unset, and the showcase flag not exactly `1`, control routes answer 503 and change nothing. A set token requires a Bearer token. A missing or wrong bearer is 401. `POST /webhook/trigger` uses that same rule. In showcase mode, every control route, GET included, requires a Host header of `localhost:<port>` or `127.0.0.1:<port>`. A mutating route also requires `Content-Type: application/json`. A request that sends an `Origin` header is rejected unless that origin is `http://localhost:<port>` or `http://127.0.0.1:<port>`. `DAN_ALLOW_UNSIGNED_WEBHOOKS=1` is refused at start when `DAN_HOST` is not a loopback address. On a loopback bind its warning is logged once at start.
 
 ## Run it in two minutes
 
 ```bash
 bun install
 bun test
-bun run src/cli.ts init
+bun run cli init
 bun dev
 ```
 
-`bun run src/cli.ts init` writes `data/kill-switch.json` when that file is missing, with the switch clear. When the file is already present, init leaves it in place and prints `had_no_work` plus the current mode. A missing state file is armed (`fail-closed`, reason `state file missing`), so a fresh disk stays armed until init. A showcase start does not write that file.
+Run `bun run cli init` once. It writes `data/kill-switch.json` when that file is missing, with the switch clear. When the file is already present, init leaves it in place and prints `had_no_work` plus the current mode. A missing state file is armed (`fail-closed`, reason `state file missing`), so a fresh checkout stays armed until init. A showcase start does not write that file.
 
 `bun install` checks packages and exits 0. `bun test` prints one line per test and finishes with a pass count, `0 fail`, and an expect count. `bun dev` listens on `127.0.0.1` port 3456 (`PORT` overrides the port, `DAN_HOST` overrides the address). If `DAN_HOST` is not a loopback address and `DAN_CONTROL_TOKEN` is unset, the process exits with one line and does not listen. `DAN_LOCAL_SHOWCASE=1` does not override that refusal. An empty `DAN_DATA_DIR` is an error. The CLI and the server print the resolved data directory on start. `dan ks gate` prints nothing. `dan ks status` prints the directory as well:
 
@@ -59,7 +59,7 @@ curl -s localhost:3456/health
 Arm the kill switch:
 
 ```bash
-bun run src/cli.ts ks on "do not touch production this week"
+bun run cli ks on "do not touch production this week"
 ```
 
 ```json
@@ -74,7 +74,7 @@ bun run src/cli.ts ks on "do not touch production this week"
 }
 ```
 
-`since` is the UTC time the switch was armed. Clear it with `bun run src/cli.ts ks off`. While it is armed, `curl -s localhost:3456/health` reports `"status": "held"`.
+`since` is the UTC time the switch was armed. Clear it with `bun run cli ks off`. While it is armed, `curl -s localhost:3456/health` reports `"status": "held"`.
 
 ## What is real and what is illustrative
 
@@ -88,7 +88,7 @@ The Sentry webhook checks `sentry-hook-signature` when `SENTRY_WEBHOOK_SECRET` i
 
 ## Limits
 
-Anthropic calls, GitHub pull requests, and edits in other repos are outside this process. Slack is skipped when `SLACK_WEBHOOK_URL` is unset. Job ids are sent in a code span. Jobs are stored in `data/jobs.json` and stay there across restarts. Each change takes an exclusive lock, re-reads the file, writes it atomically, and updates memory only after that write succeeds. `dan ingest` and `dan approve` work in separate processes. A repeated signal with the same source and ref returns the existing job while it is open (ingested, held, diagnosing, or proposed). After it is rejected, reported, or failed, the same signal queues a new job. A corrupt jobs file is reported as `could_not` with its path and is left in place. A stored job whose signal no longer validates is kept and listed as `could_not` with a reason, and the other jobs still load. Signals ingested while the switch is armed stay held. Any process that loads the job store while the switch is clear moves those held jobs to the proposal step in ingest order. That includes a clear from another process, a restart, and an expiry. When an armed switch is past `expires_at`, the first read rewrites the file as clear. An unreadable heartbeat file or folder counts as stale, and `/health` reports degraded.
+Anthropic calls, GitHub pull requests, and edits in other repos are outside this process. Slack is skipped when `SLACK_WEBHOOK_URL` is unset. Job ids are sent in a code span. Jobs live in the memory of the one server process and are lost on restart. `dan ingest`, `dan approve`, and `dan reject` send HTTP to `127.0.0.1` and send `DAN_CONTROL_TOKEN` when it is set. If no server answers, they print one line telling you to start `bun dev` and exit 1. `dan jobs` and `dan show` print the jobs in the process that runs the command. A repeated signal with the same source and ref returns the existing job while it is open (ingested, held, diagnosing, or proposed). After it is rejected, reported, or failed, the same signal queues a new job. A decided job stays decided. Title is capped at 200 characters and body at 8,000. Signals ingested while the switch is armed stay held in memory. The same process releases them in ingest order when it sees the switch clear: on `ks off` through the server, and on the next ingest or job listing after an expiry. An armed switch past `expires_at` reads as clear, the file stays as it is, and status shows `expired`. The state file is written with a temp file in the same folder, then rename. The audit line is appended after that write. If the append fails, it is logged, the response carries a warning, and the state stays as written. An unreadable heartbeat file or folder counts as stale, and `/health` reports degraded.
 
 ## Layout
 
@@ -97,6 +97,7 @@ Anthropic calls, GitHub pull requests, and edits in other repos are outside this
 | `src/index.ts` | Hono app and routes |
 | `src/cli.ts` | `dan` command |
 | `src/kill-switch.ts` | Kill switch file, atomic write |
+| `src/queue.ts` | In-memory jobs for this process |
 | `src/heartbeats.ts` | Pulse registry |
 | `src/intake/sentry.ts` | Sentry webhook (HMAC) |
 | `src/pipeline.ts` | Ingest, diagnose, human gate |

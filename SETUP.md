@@ -22,7 +22,7 @@ An empty `.env` with `PORT=3456` is enough to:
 - hit `/health`, `/os`, `/kill-switch`, `/heartbeats`, and `/status.json`
 - skip Slack
 
-Control routes (signal intake, `POST /trigger`, `POST /webhook/trigger`, job reads, job gates, kill-switch writes, heartbeat writes) answer 503 and change nothing until `DAN_CONTROL_TOKEN` is set, unless `DAN_LOCAL_SHOWCASE` is exactly `1`. In that showcase mode, a mutating route requires `Content-Type: application/json`. A request that sends an `Origin` header is rejected unless that origin is `http://localhost:<port>` or `http://127.0.0.1:<port>`.
+Control routes (signal intake, `POST /trigger`, `POST /webhook/trigger`, job reads, job gates, kill-switch writes, heartbeat writes) answer 503 and change nothing until `DAN_CONTROL_TOKEN` is set, unless `DAN_LOCAL_SHOWCASE` is exactly `1`. An empty token counts as unset. In showcase mode, every control route, GET included, requires a Host header of `localhost:<port>` or `127.0.0.1:<port>`. A mutating route also requires `Content-Type: application/json`. A request that sends an `Origin` header is rejected unless that origin is `http://localhost:<port>` or `http://127.0.0.1:<port>`.
 
 Anthropic and GitHub keys stay off the default path.
 
@@ -32,10 +32,10 @@ Anthropic and GitHub keys stay off the default path.
 |----------|----------|--------|
 | `PORT` | No | Default `3456` |
 | `DAN_HOST` | No | Default `127.0.0.1`. If this is not a loopback address and `DAN_CONTROL_TOKEN` is unset, the process exits with one line and does not listen. `DAN_LOCAL_SHOWCASE` does not override that refusal. |
-| `DAN_DATA_DIR` | No | Default `./data` (kill-switch, jobs, heartbeats). An empty value is an error. The CLI and the server print the resolved directory on start. `dan ks gate` prints nothing. |
-| `DAN_CONTROL_TOKEN` | Beyond a laptop demo | Set this for anything beyond a laptop demo. Unset, control routes return 503 and change nothing. When set, those routes need `Authorization: Bearer` plus the token. A missing or wrong bearer is 401. `POST /webhook/trigger` uses this rule. |
-| `DAN_LOCAL_SHOWCASE` | No | Exactly `1` is for local demos only. It leaves control routes open when `DAN_CONTROL_TOKEN` is unset, and the server logs one warning at start. It does not write a kill-switch file. |
-| `SENTRY_WEBHOOK_SECRET` | No* | HMAC-SHA256 on `sentry-hook-signature`. If unset, `POST /webhook/sentry` returns 503 and ingests nothing. |
+| `DAN_DATA_DIR` | No | Default `./data` (kill-switch file, its audit log, and heartbeats). Jobs stay in memory. An empty value is an error. The CLI and the server print the resolved directory on start. `dan ks gate` prints nothing. |
+| `DAN_CONTROL_TOKEN` | Beyond a laptop demo | Set this for anything beyond a laptop demo. An empty value counts as unset. Unset, control routes return 503 and change nothing. When set, those routes need `Authorization: Bearer` plus the token. A missing or wrong bearer is 401. `POST /webhook/trigger` uses this rule. |
+| `DAN_LOCAL_SHOWCASE` | No | Exactly `1` is for local demos only. It leaves control routes open when `DAN_CONTROL_TOKEN` is unset, and the server logs one warning at start. Every control route in that mode, GET included, requires a Host header of `localhost:<port>` or `127.0.0.1:<port>`. It does not write a kill-switch file. |
+| `SENTRY_WEBHOOK_SECRET` | No* | HMAC-SHA256 on `sentry-hook-signature`. An empty value counts as unset. If unset, `POST /webhook/sentry` returns 503 and ingests nothing. |
 | `DAN_ALLOW_UNSIGNED_WEBHOOKS` | No | Exactly `1` is for local demos only. It accepts unsigned Sentry posts when the secret is unset, and logs one warning at start. It is refused at start when `DAN_HOST` is not a loopback address. Any other value leaves the 503 in place. |
 | `SLACK_WEBHOOK_URL` | No | Incoming webhook. Unset = silent skip |
 
@@ -46,11 +46,12 @@ Anthropic and GitHub keys stay off the default path.
 ## Run
 
 ```bash
+bun run cli init        # once, writes a clear kill-switch file when none exists
 bun dev                 # watch
 bun start               # no watch
 bun test
 bun run typecheck
-bun run src/cli.ts help
+bun run cli help
 ```
 
 Expected boot log:
@@ -77,9 +78,9 @@ curl -s localhost:3456/jobs \
 Kill-switch:
 
 ```bash
-bun run src/cli.ts ks on "do not touch production this week"
+bun run cli ks on "do not touch production this week"
 curl -s localhost:3456/health   # status: held
-bun run src/cli.ts ks off
+bun run cli ks off
 ```
 
 Sentry webhook:
@@ -94,19 +95,18 @@ Sentry webhook:
 ## Data on disk
 
 ```
-data/kill-switch.json          # committed default: inactive
-data/jobs.json                 # proposals, held jobs, and decisions
+data/kill-switch.json          # written by `bun run cli init`, gitignored
 data/heartbeats/<name>.json    # gitignored pulses
 data/kill-switch.log           # gitignored audit
 ```
 
-A missing kill-switch file reads as armed, reason `state file missing`. `bun run src/cli.ts init` writes a clear file when none exists. It leaves an existing file in place and prints the current mode. A corrupt or unreadable kill-switch file stays in place; fix or remove it, then run `dan init`. The audit line is appended before the state file is replaced. If that append fails while arming, the switch still arms and the response carries a warning. If it fails while clearing, the switch stays armed and the error is returned. When an armed switch is past `expires_at`, the first read rewrites the file as clear once.
+A missing, unreadable, or corrupt kill-switch file reads as armed. `bun run cli init` writes a clear file when none exists, and it refuses to overwrite an existing one. The state file is written with a temp file in the same folder, then rename. The audit line is appended after that write. If the append fails, it is logged, the response carries a warning, and the state stays as written. An armed switch past `expires_at` reads as clear, the file stays as it is, and status shows `expired`.
 
-Jobs persist in `data/jobs.json`. A restart keeps pending proposals. Each change takes an exclusive lock beside the file, re-reads it, and writes it atomically. Memory changes only after that write succeeds. `dan ingest` and `dan approve` work in separate processes. Signals ingested while the switch is armed are held. Any process that loads the job store while the switch is clear moves those held jobs to the proposal step in ingest order, including a clear from another process, a restart, and an expiry. A repeated signal with the same source and ref returns the existing job while it is open (ingested, held, diagnosing, or proposed). After it is rejected, reported, or failed, the same signal queues a new job. A decided job stays decided. A corrupt jobs file is reported as `could_not` with its path and is left in place. A stored job whose signal no longer validates is kept and listed as `could_not` with a reason, and the other jobs still load. A heartbeat file is written with a temp file and then renamed. A heartbeat file that cannot be parsed, or an unreadable heartbeat file or folder, is reported as `could_not` and counts as stale. `/health` then reports degraded. `/heartbeats` and `dan health` still respond.
+Jobs live in the memory of the one server process and are lost on restart. `dan ingest`, `dan approve`, and `dan reject` send HTTP to `127.0.0.1` and send `DAN_CONTROL_TOKEN` when it is set. If no server answers, they print one line telling you to start `bun dev` and exit 1. `dan jobs` and `dan show` print the jobs in the process that runs the command. Signals ingested while the switch is armed stay held. The same process releases them in ingest order when it sees the switch clear: on `ks off` through the server, and on the next ingest or job listing after an expiry. A repeated signal with the same source and ref returns the existing job while it is open (ingested, held, diagnosing, or proposed). After it is rejected, reported, or failed, the same signal queues a new job. A decided job stays decided. A heartbeat file is written with a temp file and then renamed. A heartbeat file that cannot be parsed, or an unreadable heartbeat file or folder, is reported as `could_not` and counts as stale. `/health` then reports degraded. `/heartbeats` and `dan health` still respond.
 
 ## Production notes
 
-This is a showcase skeleton. The process listens on `127.0.0.1` unless `DAN_HOST` is set. A non-loopback `DAN_HOST` with `DAN_CONTROL_TOKEN` unset exits before it listens.
+This is a small demo of the control plane. The process listens on `127.0.0.1` unless `DAN_HOST` is set. A non-loopback `DAN_HOST` with `DAN_CONTROL_TOKEN` unset exits before it listens. A non-loopback `DAN_HOST` with `DAN_ALLOW_UNSIGNED_WEBHOOKS=1` also exits before it listens.
 
 1. Set `DAN_CONTROL_TOKEN` and `SENTRY_WEBHOOK_SECRET`. Leave `DAN_LOCAL_SHOWCASE` and `DAN_ALLOW_UNSIGNED_WEBHOOKS` unset. Both `=1` flags are for local demos only.
 2. Keep the kill-switch file on a writable volume
